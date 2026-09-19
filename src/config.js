@@ -27,27 +27,44 @@ export const GAME_CONFIG = {
     // Station Coordinates
     counter: {
       x: 360,
-      y: 440,
-      width: 320,
-      height: 90,
-      customerStopY: 370,
-      workerStopY: 510
-    },
-    sewingTable: {
-      x: 360,
-      y: 860,
-      width: 260,
-      height: 120,
-      workerStopX: 360,
-      workerStopY: 770
+      y: 430,
+      width: 340,
+      height: 86,
+      customerStopY: 355,
+      workerStopY: 495,
+      // Horizontal side-by-side customer slots
+      customerSlots: [
+        { id: 0, x: 300, y: 355 }, // Slot 1
+        { id: 1, x: 420, y: 355 }  // Slot 2
+      ]
     },
 
-    // Queue slots for customers
-    queue: [
-      { x: 360, y: 360 }, // Active ordering position at counter
-      { x: 360, y: 280 }, // Slot 1
-      { x: 360, y: 210 }, // Slot 2 (on sidewalk)
-      { x: 360, y: 140 }  // Slot 3 (on crosswalk)
+    // Sewing Table: Moved closer to counter (y: 640 instead of 860) to tighten worker loop
+    sewingTable: {
+      x: 360,
+      y: 640,
+      width: 260,
+      height: 110,
+      workerStopX: 360,
+      workerStopY: 570
+    },
+
+    // Zone 2 Station Placeholder: Designer Jeans & Hats Station
+    zone2: {
+      x: 360,
+      y: 890,
+      width: 280,
+      height: 120,
+      unlockCost: 100,
+      workerStopX: 360,
+      workerStopY: 820
+    },
+
+    // Waiting queue slots lining up neatly behind the counter service area
+    waitingQueue: [
+      { x: 360, y: 275 }, // Behind counter slots
+      { x: 360, y: 205 }, // On sidewalk
+      { x: 360, y: 135 }  // On crosswalk
     ]
   },
 
@@ -75,6 +92,7 @@ export const GAME_CONFIG = {
     uiBlue: 0x3498db,
     uiBlueDark: 0x2980b9,
     uiGreen: 0x2ecc71,
+    uiGreenDark: 0x27ae60,
     uiCardBg: 0xffffff,
     shadowColor: 0x000000,
     avatarSkin: 0xf6d397,
@@ -109,9 +127,24 @@ class GameState {
       costMultiplier: 1.18,
       baseProfit: 4,
       profitMultiplier: 1.15,
-      baseCraftDuration: 2800, // milliseconds
-      minCraftDuration: 600,
+      baseCraftDuration: 2200, // snappier loop
+      minCraftDuration: 500,
       speedReductionRate: 0.96
+    };
+
+    // Zone 2 (Jeans & Hats Station) progression
+    this.zone2Station = {
+      unlocked: false,
+      cost: GAME_CONFIG.layout.zone2.unlockCost,
+      level: 1,
+      maxLevel: 50,
+      baseCost: 80,
+      costMultiplier: 1.20,
+      baseProfit: 16,
+      profitMultiplier: 1.16,
+      baseCraftDuration: 3000,
+      minCraftDuration: 700,
+      speedReductionRate: 0.95
     };
 
     // Event listeners
@@ -183,6 +216,32 @@ class GameState {
       return true;
     }
     return false;
+  }
+
+  // Zone 2 Methods
+  canUnlockZone2() {
+    return !this.zone2Station.unlocked && this.coins >= this.zone2Station.cost;
+  }
+
+  unlockZone2() {
+    if (this.canUnlockZone2()) {
+      if (this.spendCoins(this.zone2Station.cost)) {
+        this.zone2Station.unlocked = true;
+        this.emit('zone2Unlocked', {
+          station: 'zone2',
+          level: this.zone2Station.level,
+          profit: this.getZone2Profit()
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getZone2Profit() {
+    const { baseProfit, profitMultiplier, level } = this.zone2Station;
+    const base = Math.floor(baseProfit * Math.pow(profitMultiplier, level - 1));
+    return this.boostActive ? base * this.boostMultiplier : base;
   }
 
   activateBoost(duration = 30) {

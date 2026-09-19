@@ -1,7 +1,7 @@
 /**
  * Fitventure - UI System
- * Top Floating Coin Pill, Bottom Dock Buttons (Renovate, Boost x2, Upgrades),
- * and Interactive Station Upgrade Modal Card.
+ * Top Floating Coin Pill, Chunky 3D Bottom Dock Buttons (Renovate, Boost x2, Upgrades),
+ * and High-Readability Interactive Station Upgrade Modal Card for Mobile.
  */
 
 import { GAME_CONFIG, gameState } from './config.js';
@@ -34,45 +34,49 @@ export class TopCoinsPill {
   }
 
   drawPill() {
-    const w = 180;
-    const h = 52;
+    const w = 210;
+    const h = 58;
     const r = h / 2;
 
     const g = this.scene.add.graphics();
     // Soft drop shadow
-    g.fillStyle(0x000000, 0.22);
-    g.fillRoundedRect(-w / 2, -h / 2 + 4, w, h, r);
+    g.fillStyle(0x000000, 0.25);
+    g.fillRoundedRect(-w / 2, -h / 2 + 5, w, h, r);
 
-    // Crisp white pill body
+    // 3D bottom bevel
+    g.fillStyle(0xdcdde1, 1.0);
+    g.fillRoundedRect(-w / 2, -h / 2 + 3, w, h - 3, r);
+
+    // Crisp white pill face
     g.fillStyle(0xffffff, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, h, r);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h - 4, r);
 
-    // Border
+    // Subtle inner border
     g.lineStyle(2, 0xe2e8f0, 1.0);
-    g.strokeRoundedRect(-w / 2, -h / 2, w, h, r);
+    g.strokeRoundedRect(-w / 2, -h / 2, w, h - 4, r);
     this.container.add(g);
 
     // Shiny Gold Coin Icon (Left)
-    this.coinIcon = this.scene.add.container(-w / 2 + 28, 0);
+    this.coinIcon = this.scene.add.container(-w / 2 + 32, -2);
     const cg = this.scene.add.graphics();
     cg.fillStyle(0xf1c40f, 1.0);
-    cg.fillCircle(0, 0, 16);
+    cg.fillCircle(0, 0, 18);
     cg.lineStyle(2, 0xd4ac0d, 1.0);
-    cg.strokeCircle(0, 0, 12);
+    cg.strokeCircle(0, 0, 14);
     const star = this.scene.add.text(0, 0, '★', {
-      fontSize: '13px',
+      fontSize: '15px',
       color: '#b7950b'
     }).setOrigin(0.5);
     this.coinIcon.add(cg);
     this.coinIcon.add(star);
     this.container.add(this.coinIcon);
 
-    // Coin Amount Text
-    this.amountText = this.scene.add.text(12, 0, '0', {
+    // Coin Amount Text (Large, bold, high contrast for mobile)
+    this.amountText = this.scene.add.text(16, -2, '0', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '22px',
+      fontSize: '26px',
       fontStyle: 'bold',
-      color: '#2d3748'
+      color: '#0f172a'
     }).setOrigin(0.5);
     this.container.add(this.amountText);
   }
@@ -102,7 +106,8 @@ export class TopCoinsPill {
 
 /**
  * Bottom Dock Buttons
- * Eatventure-style 3 dock buttons: Renovate (Hammer), Boost x2, Upgrades
+ * Vibrant, chunky 3D buttons (Hammer/Renovate, Boost x2, Upgrades):
+ * Thick bottom shadow border, larger crisp icons, larger bold typography.
  */
 export class BottomDock {
   constructor(scene) {
@@ -110,24 +115,35 @@ export class BottomDock {
     this.container = scene.add.container(0, 0);
     this.container.setDepth(48);
 
-    const dockY = 1200;
-    this.createRenovateButton(150, dockY);
+    const dockY = 1195;
+    this.createRenovateButton(135, dockY);
     this.createBoostButton(360, dockY);
-    this.createUpgradesButton(570, dockY);
+    this.createUpgradesButton(585, dockY);
   }
 
-  createButtonBase(x, y, w, h, bgColor, bevelColor) {
+  /**
+   * Rebuilds vibrant, chunky 3D buttons with a thick bottom shadow border (8-10px)
+   */
+  createChunkyButton(x, y, w, h, faceColor, bevelColor, shadowDepth = 8) {
     const btnContainer = this.scene.add.container(x, y);
     const g = this.scene.add.graphics();
-    // Drop shadow
-    g.fillStyle(0x000000, 0.28);
-    g.fillRoundedRect(-w / 2, -h / 2 + 5, w, h, 14);
-    // 3D bottom bevel
+
+    // 1. Soft ambient drop shadow
+    g.fillStyle(0x000000, 0.35);
+    g.fillRoundedRect(-w / 2, -h / 2 + shadowDepth + 4, w, h, 18);
+
+    // 2. Thick 3D bottom bevel (gives chunky, tactile physical depth)
     g.fillStyle(bevelColor, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2 + 4, w, h - 4, 14);
-    // Button face
-    g.fillStyle(bgColor, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, h - 6, 14);
+    g.fillRoundedRect(-w / 2, -h / 2 + shadowDepth, w, h - shadowDepth, 18);
+
+    // 3. Vibrant button face
+    g.fillStyle(faceColor, 1.0);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h - shadowDepth - 3, 18);
+
+    // 4. Glossy highlight line on top edge
+    g.fillStyle(0xffffff, 0.28);
+    g.fillRoundedRect(-w / 2 + 10, -h / 2 + 3, w - 20, 6, 3);
+
     btnContainer.add(g);
     btnContainer.graphics = g;
 
@@ -135,12 +151,14 @@ export class BottomDock {
     const hitArea = new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h);
     btnContainer.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
 
+    // Tactile press & bounce animations
     btnContainer.on('pointerdown', () => {
       this.scene.tweens.add({
         targets: btnContainer,
-        y: y + 3,
-        scale: 0.96,
-        duration: 70
+        y: y + shadowDepth - 2,
+        scale: 0.95,
+        duration: 60,
+        ease: 'Quad.easeOut'
       });
     });
 
@@ -149,7 +167,8 @@ export class BottomDock {
         targets: btnContainer,
         y: y,
         scale: 1.0,
-        duration: 80
+        duration: 100,
+        ease: 'Back.easeOut'
       });
     };
     btnContainer.on('pointerup', release);
@@ -160,14 +179,17 @@ export class BottomDock {
   }
 
   createRenovateButton(x, y) {
-    const btn = this.createButtonBase(x, y, 140, 78, 0xffffff, 0xdcdde1);
+    // Crisp white button with thick slate bevel
+    const btn = this.createChunkyButton(x, y, 185, 88, 0xffffff, 0x94a3b8, 9);
 
-    const icon = this.scene.add.text(0, -12, '🔨', { fontSize: '26px' }).setOrigin(0.5);
-    const label = this.scene.add.text(0, 16, 'RENOVATE', {
+    // Larger crisp icon
+    const icon = this.scene.add.text(0, -14, '🔨', { fontSize: '34px' }).setOrigin(0.5);
+    // Larger bold typography
+    const label = this.scene.add.text(0, 18, 'RENOVATE', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '12px',
+      fontSize: '16px',
       fontStyle: 'bold',
-      color: '#718093'
+      color: '#334155'
     }).setOrigin(0.5);
 
     btn.add(icon);
@@ -176,26 +198,31 @@ export class BottomDock {
     btn.on('pointerup', () => {
       this.scene.events.emit('openNotice', {
         title: 'Boutique Renovation',
-        text: 'Stage 1: Boutique T-Shirt Studio is active! Maximize profits to expand.'
+        text: 'Stage 1: Boutique T-Shirt Studio & Zone 2 Denim Studio are active! Maximize profits to expand your fashion empire.'
       });
     });
   }
 
   createBoostButton(x, y) {
-    this.boostBtn = this.createButtonBase(x, y, 160, 78, 0xf39c12, 0xd68910);
+    // Vibrant electric amber-gold with deep warm bevel
+    this.boostBtn = this.createChunkyButton(x, y, 205, 88, 0xf59e0b, 0xb45309, 9);
 
-    const icon = this.scene.add.text(0, -14, '⚡ 2X BOOST', {
+    // Large crisp icon + bold title
+    const icon = this.scene.add.text(0, -15, '⚡ 2X BOOST', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '15px',
+      fontSize: '18px',
       fontStyle: 'bold',
-      color: '#ffffff'
+      color: '#ffffff',
+      stroke: '#78350f',
+      strokeThickness: 3
     }).setOrigin(0.5);
 
-    this.boostTimerText = this.scene.add.text(0, 14, 'TAP TO ACTIVATE', {
+    // Large bold timer / prompt
+    this.boostTimerText = this.scene.add.text(0, 17, 'TAP TO ACTIVATE', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '11px',
+      fontSize: '13px',
       fontStyle: 'bold',
-      color: '#fef9e7'
+      color: '#fef3c7'
     }).setOrigin(0.5);
 
     this.boostBtn.add(icon);
@@ -211,7 +238,7 @@ export class BottomDock {
     gameState.on('boostChanged', (data) => {
       if (data.active) {
         this.boostTimerText.setText(`${data.duration}s REMAINING`);
-        this.boostBtn.setScale(1.05);
+        this.boostBtn.setScale(1.04);
       } else {
         this.boostTimerText.setText('TAP TO ACTIVATE');
         this.boostBtn.setScale(1.0);
@@ -224,14 +251,19 @@ export class BottomDock {
   }
 
   createUpgradesButton(x, y) {
-    const btn = this.createButtonBase(x, y, 140, 78, 0x2ecc71, 0x27ae60);
+    // Vibrant emerald green button with deep forest green bevel
+    const btn = this.createChunkyButton(x, y, 185, 88, 0x22c55e, 0x15803d, 9);
 
-    const icon = this.scene.add.text(0, -12, '⭐', { fontSize: '26px' }).setOrigin(0.5);
-    const label = this.scene.add.text(0, 16, 'UPGRADES', {
+    // Larger crisp icon
+    const icon = this.scene.add.text(0, -14, '⭐', { fontSize: '34px' }).setOrigin(0.5);
+    // Larger bold typography
+    const label = this.scene.add.text(0, 18, 'UPGRADES', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '12px',
+      fontSize: '16px',
       fontStyle: 'bold',
-      color: '#ffffff'
+      color: '#ffffff',
+      stroke: '#14532d',
+      strokeThickness: 2
     }).setOrigin(0.5);
 
     btn.add(icon);
@@ -245,9 +277,9 @@ export class BottomDock {
 
 /**
  * Interactive Station Upgrade Card (Modal)
- * Pops up when clicking the sewing table or upgrade dock button.
+ * Large, chunky, high-readability design for mobile screens.
  * Shows station level, progress bar, profit per item, craft speed,
- * and a tactile blue upgrade button.
+ * and a tactile chunky blue upgrade button.
  */
 export class StationUpgradeModal {
   constructor(scene) {
@@ -261,18 +293,18 @@ export class StationUpgradeModal {
 
     // Dark semi-transparent backdrop
     this.backdrop = scene.add.graphics();
-    this.backdrop.fillStyle(0x000000, 0.6);
+    this.backdrop.fillStyle(0x000000, 0.65);
     this.backdrop.fillRect(0, 0, GAME_CONFIG.width, GAME_CONFIG.height);
     this.backdrop.setInteractive(new Phaser.Geom.Rectangle(0, 0, GAME_CONFIG.width, GAME_CONFIG.height), Phaser.Geom.Rectangle.Contains);
     this.backdrop.on('pointerup', () => this.close());
     this.container.add(this.backdrop);
 
-    // Floating Card Panel
+    // Floating Card Panel (increased dimensions: 520x590 for mobile readability)
     this.card = scene.add.container(360, 640);
     this.container.add(this.card);
 
-    this.cardWidth = 460;
-    this.cardHeight = 520;
+    this.cardWidth = 520;
+    this.cardHeight = 590;
 
     this.buildCardUI();
 
@@ -292,100 +324,105 @@ export class StationUpgradeModal {
 
     const g = this.scene.add.graphics();
     // Card soft drop shadow
-    g.fillStyle(0x000000, 0.35);
-    g.fillRoundedRect(-w / 2, -h / 2 + 10, w, h, 24);
+    g.fillStyle(0x000000, 0.4);
+    g.fillRoundedRect(-w / 2, -h / 2 + 12, w, h, 26);
 
     // Clean white floating card body
     g.fillStyle(0xffffff, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, h, 24);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, 26);
 
     // Top Header Banner
     g.fillStyle(0xf8fafc, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, 76, { tl: 24, tr: 24, bl: 0, br: 0 });
+    g.fillRoundedRect(-w / 2, -h / 2, w, 84, { tl: 26, tr: 26, bl: 0, br: 0 });
     g.lineStyle(2, 0xe2e8f0, 1);
-    g.lineBetween(-w / 2, -h / 2 + 76, w / 2, -h / 2 + 76);
+    g.lineBetween(-w / 2, -h / 2 + 84, w / 2, -h / 2 + 84);
     this.card.add(g);
 
-    // Title: Sewing Station
-    this.titleText = this.scene.add.text(-w / 2 + 26, -h / 2 + 24, 'Sewing Table', {
+    // Title: Sewing Station (Increased to 28px bold)
+    this.titleText = this.scene.add.text(-w / 2 + 28, -h / 2 + 26, 'Sewing Table', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '24px',
+      fontSize: '28px',
       fontStyle: 'bold',
-      color: '#1e293b'
+      color: '#0f172a'
     });
     this.card.add(this.titleText);
 
-    // Close Button (✕)
-    const closeBtn = this.scene.add.container(w / 2 - 38, -h / 2 + 38);
+    // Close Button (✕) with larger touch target
+    const closeBtn = this.scene.add.container(w / 2 - 42, -h / 2 + 42);
     const closeBg = this.scene.add.graphics();
     closeBg.fillStyle(0xe2e8f0, 1.0);
-    closeBg.fillCircle(0, 0, 18);
+    closeBg.fillCircle(0, 0, 22);
     const closeText = this.scene.add.text(0, 0, '✕', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '18px',
+      fontSize: '22px',
       fontStyle: 'bold',
-      color: '#64748b'
+      color: '#475569'
     }).setOrigin(0.5);
     closeBtn.add(closeBg);
     closeBtn.add(closeText);
-    closeBtn.setInteractive(new Phaser.Geom.Circle(0, 0, 18), Phaser.Geom.Circle.Contains);
+    closeBtn.setInteractive(new Phaser.Geom.Circle(0, 0, 22), Phaser.Geom.Circle.Contains);
     closeBtn.on('pointerup', () => this.close());
     this.card.add(closeBtn);
 
     // Station Illustration Box
     const illustBox = this.scene.add.graphics();
     illustBox.fillStyle(0xf1f5f9, 1.0);
-    illustBox.fillRoundedRect(-w / 2 + 30, -h / 2 + 96, w - 60, 100, 16);
+    illustBox.fillRoundedRect(-w / 2 + 30, -h / 2 + 104, w - 60, 108, 18);
     this.card.add(illustBox);
 
-    const stationIcon = this.scene.add.text(0, -h / 2 + 134, '🧵 👕 ✂️', {
-      fontSize: '36px'
+    // Larger station icons
+    const stationIcon = this.scene.add.text(0, -h / 2 + 144, '🧵  👕  ✂️', {
+      fontSize: '40px'
     }).setOrigin(0.5);
     this.card.add(stationIcon);
 
-    this.levelBadgeText = this.scene.add.text(0, -h / 2 + 172, 'Level 1 / 50', {
+    // Larger Level Badge Text (18px bold)
+    this.levelBadgeText = this.scene.add.text(0, -h / 2 + 186, 'Level 1 / 50', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '15px',
+      fontSize: '18px',
       fontStyle: 'bold',
-      color: '#2563eb'
+      color: '#1d4ed8'
     }).setOrigin(0.5);
     this.card.add(this.levelBadgeText);
 
-    // Milestone Progress Bar Container
+    // Milestone Progress Bar Container (thick 16px bar)
     this.progressBarGraphics = this.scene.add.graphics();
     this.card.add(this.progressBarGraphics);
 
-    // Stat Row 1: Profit per T-shirt
-    this.createStatRow(-h / 2 + 250, 'Profit Per T-Shirt:', 'profitText', '🪙 +4');
+    // Stat Row 1: Profit per T-shirt (increased text size)
+    this.createStatRow(-h / 2 + 270, 'Profit Per T-Shirt:', 'profitText', '🪙 +4');
 
-    // Stat Row 2: Crafting Speed
-    this.createStatRow(-h / 2 + 310, 'Crafting Speed:', 'speedText', '2.8s');
+    // Stat Row 2: Crafting Speed (increased text size)
+    this.createStatRow(-h / 2 + 340, 'Crafting Speed:', 'speedText', '2.2s');
 
-    // Blue Upgrade Button at Bottom
-    this.buildUpgradeButton(0, h / 2 - 65, w - 70, 68);
+    // Chunky Blue Upgrade Button at Bottom (height: 78px)
+    this.buildUpgradeButton(0, h / 2 - 70, w - 70, 78);
   }
 
   createStatRow(y, label, key, defaultVal) {
     const w = this.cardWidth;
     const bg = this.scene.add.graphics();
     bg.fillStyle(0xf8fafc, 1.0);
-    bg.fillRoundedRect(-w / 2 + 30, y - 20, w - 60, 44, 10);
+    bg.fillRoundedRect(-w / 2 + 30, y - 24, w - 60, 52, 12);
     bg.lineStyle(1, 0xe2e8f0, 1);
-    bg.strokeRoundedRect(-w / 2 + 30, y - 20, w - 60, 44, 10);
+    bg.strokeRoundedRect(-w / 2 + 30, y - 24, w - 60, 52, 12);
     this.card.add(bg);
 
-    const lbl = this.scene.add.text(-w / 2 + 46, y + 2, label, {
+    // Larger bold label
+    const lbl = this.scene.add.text(-w / 2 + 48, y + 2, label, {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '16px',
-      color: '#475569'
+      fontSize: '19px',
+      fontStyle: 'bold',
+      color: '#334155'
     }).setOrigin(0, 0.5);
     this.card.add(lbl);
 
-    this[key] = this.scene.add.text(w / 2 - 46, y + 2, defaultVal, {
+    // Larger bold value
+    this[key] = this.scene.add.text(w / 2 - 48, y + 2, defaultVal, {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '18px',
+      fontSize: '22px',
       fontStyle: 'bold',
-      color: '#16a34a'
+      color: '#15803d'
     }).setOrigin(1, 0.5);
     this.card.add(this[key]);
   }
@@ -397,17 +434,19 @@ export class StationUpgradeModal {
     this.upgradeBtnGraphics = this.scene.add.graphics();
     this.upgradeBtn.add(this.upgradeBtnGraphics);
 
-    this.upgradeBtnText = this.scene.add.text(0, -10, 'UPGRADE', {
+    // Larger bold upgrade label
+    this.upgradeBtnText = this.scene.add.text(0, -13, 'UPGRADE', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '18px',
+      fontSize: '22px',
       fontStyle: 'bold',
       color: '#ffffff'
     }).setOrigin(0.5);
     this.upgradeBtn.add(this.upgradeBtnText);
 
-    this.upgradeBtnCostText = this.scene.add.text(0, 14, '🪙 10', {
+    // Larger bold cost text
+    this.upgradeBtnCostText = this.scene.add.text(0, 15, '🪙 10', {
       fontFamily: 'Arial, sans-serif',
-      fontSize: '16px',
+      fontSize: '20px',
       fontStyle: 'bold',
       color: '#fef08a'
     }).setOrigin(0.5);
@@ -421,7 +460,7 @@ export class StationUpgradeModal {
         this.scene.tweens.add({
           targets: this.upgradeBtn,
           scale: 0.95,
-          duration: 70
+          duration: 60
         });
       }
     });
@@ -436,7 +475,7 @@ export class StationUpgradeModal {
         // Shake button if can't afford
         this.scene.tweens.add({
           targets: this.upgradeBtn,
-          x: '+=6',
+          x: '+=8',
           yoyo: true,
           repeat: 3,
           duration: 40
@@ -448,42 +487,50 @@ export class StationUpgradeModal {
   drawProgressBar(current, max) {
     this.progressBarGraphics.clear();
     const w = this.cardWidth - 60;
-    const h = 12;
+    const h = 16;
     const x = -w / 2;
-    const y = -this.cardHeight / 2 + 208;
+    const y = -this.cardHeight / 2 + 226;
 
     // Track
     this.progressBarGraphics.fillStyle(0xe2e8f0, 1.0);
-    this.progressBarGraphics.fillRoundedRect(x, y, w, h, 6);
+    this.progressBarGraphics.fillRoundedRect(x, y, w, h, 8);
 
     // Fill
     const pct = Phaser.Math.Clamp(current / max, 0, 1);
     if (pct > 0) {
-      this.progressBarGraphics.fillStyle(0x3b82f6, 1.0);
-      this.progressBarGraphics.fillRoundedRect(x, y, Math.max(12, w * pct), h, 6);
+      this.progressBarGraphics.fillStyle(0x2563eb, 1.0);
+      this.progressBarGraphics.fillRoundedRect(x, y, Math.max(16, w * pct), h, 8);
+      // Shine highlight
+      this.progressBarGraphics.fillStyle(0xffffff, 0.3);
+      this.progressBarGraphics.fillRoundedRect(x + 4, y + 2, Math.max(10, w * pct - 8), 4, 2);
     }
   }
 
-  drawUpgradeButtonVisual(canAfford, w = this.cardWidth - 70, h = 68) {
+  drawUpgradeButtonVisual(canAfford, w = this.cardWidth - 70, h = 78) {
     this.upgradeBtnGraphics.clear();
     // Drop shadow
-    this.upgradeBtnGraphics.fillStyle(0x000000, 0.25);
-    this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2 + 4, w, h, 16);
+    this.upgradeBtnGraphics.fillStyle(0x000000, 0.3);
+    this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2 + 5, w, h, 18);
 
     if (canAfford) {
-      // Vibrant blue 3D bevel & face
+      // Chunky vibrant blue 3D bevel & face
       this.upgradeBtnGraphics.fillStyle(0x1d4ed8, 1.0);
-      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2 + 3, w, h - 3, 16);
-      this.upgradeBtnGraphics.fillStyle(0x2563eb, 1.0);
-      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2, w, h - 5, 16);
+      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2 + 4, w, h - 4, 18);
+      this.upgradeBtnGraphics.fillStyle(0x3b82f6, 1.0);
+      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2, w, h - 8, 18);
+      // Top gloss shine
+      this.upgradeBtnGraphics.fillStyle(0xffffff, 0.3);
+      this.upgradeBtnGraphics.fillRoundedRect(-w / 2 + 12, -h / 2 + 4, w - 24, 6, 3);
+
       this.upgradeBtnText.setColor('#ffffff');
       this.upgradeBtnCostText.setColor('#fef08a');
     } else {
       // Disabled slate gray
-      this.upgradeBtnGraphics.fillStyle(0x64748b, 1.0);
-      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2 + 3, w, h - 3, 16);
+      this.upgradeBtnGraphics.fillStyle(0x475569, 1.0);
+      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2 + 4, w, h - 4, 18);
       this.upgradeBtnGraphics.fillStyle(0x94a3b8, 1.0);
-      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2, w, h - 5, 16);
+      this.upgradeBtnGraphics.fillRoundedRect(-w / 2, -h / 2, w, h - 8, 18);
+
       this.upgradeBtnText.setColor('#e2e8f0');
       this.upgradeBtnCostText.setColor('#f1f5f9');
     }

@@ -1,7 +1,9 @@
 /**
  * Fitventure - Environment Renderer
  * Perspective: 2.5D Top-Down Orthographic
- * Recreates the Eatventure stage layout adapted for a Clothing Boutique.
+ * Recreates the Eatventure stage layout adapted for a Clothing Boutique:
+ * Asphalt street, zebra crosswalk, sidewalk, boutique parquet floor,
+ * striped awning canopy, lush side hedges, and dark red pavement band.
  */
 
 import { GAME_CONFIG } from './config.js';
@@ -26,7 +28,7 @@ export function drawEnvironment(scene) {
 
   // WHITE CROSSWALK STRIPES (Zebra Crossing) centered at x: 360
   // Pedestrians use this crosswalk to walk into the boutique
-  const stripeWidth = 130;
+  const stripeWidth = 140;
   const stripeHeight = 14;
   const stripeStartX = 360 - stripeWidth / 2;
   g.fillStyle(colors.crosswalk, 0.95);
@@ -68,9 +70,17 @@ export function drawEnvironment(scene) {
     g.lineBetween(x, 260, x, 1100);
   }
 
-  // Subtle checkered boutique rug runner under the counter and customer line
-  g.fillStyle(0xede8df, 0.5);
-  g.fillRect(280, 260, 160, 260);
+  // Checkered boutique rug runner framing the horizontal customer counter slots
+  g.fillStyle(0xede8df, 0.55);
+  g.fillRect(250, 260, 220, 180);
+
+  // Warm boutique parquet inlay under Sewing Table workstation (y: 640)
+  g.fillStyle(0xe2ded4, 0.45);
+  g.fillRoundedRect(220, 580, 280, 130, 12);
+
+  // Designated floor pad under Zone 2 Jeans & Hats station (y: 890)
+  g.fillStyle(0xe2ded4, 0.45);
+  g.fillRoundedRect(210, 820, 300, 140, 16);
 
   // 4. DARK RED PAVEMENT BAND AT BOTTOM (y: 1100 to 1280)
   g.fillStyle(colors.bottomDeckRed, 1.0);
@@ -101,7 +111,7 @@ export function drawEnvironment(scene) {
   drawBoutiqueDecor(scene);
 
   // 7. YELLOW-AND-WHITE STRIPED AWNING CANOPY OVER ENTRANCE & COUNTER
-  drawAwningCanopy(scene, 180, 230, 360, 70);
+  drawAwningCanopy(scene, 170, 220, 380, 70);
 
   return g;
 }
@@ -128,7 +138,7 @@ function drawHedgeColumn(g, centerX, startY, endY, colorLight, colorDark) {
 }
 
 /**
- * Draws high-end clothing boutique props (T-shirt racks, mirror, plant)
+ * Draws high-end clothing boutique props (T-shirt racks, mirror, plant, accessories shelf)
  */
 function drawBoutiqueDecor(scene) {
   const g = scene.add.graphics();
@@ -136,18 +146,18 @@ function drawBoutiqueDecor(scene) {
   // LEFT WALL: T-Shirt Display Rack
   // Shadow
   g.fillStyle(0x000000, 0.15);
-  g.fillRoundedRect(75, 520, 34, 160, 6);
+  g.fillRoundedRect(75, 480, 34, 160, 6);
   // Metal frame
   g.fillStyle(0x2c3e50, 1.0);
-  g.fillRoundedRect(72, 515, 30, 155, 4);
+  g.fillRoundedRect(72, 475, 30, 155, 4);
   // Hanging clothes bar
   g.fillStyle(0xbdc3c7, 1.0);
-  g.fillRect(85, 525, 4, 135);
+  g.fillRect(85, 485, 4, 135);
 
   // Mini colorful hanging tees on rack
   const shirtColors = [0xe74c3c, 0x3498db, 0xf1c40f, 0x9b59b6, 0x1abc9c];
   shirtColors.forEach((color, i) => {
-    const sy = 535 + i * 26;
+    const sy = 495 + i * 26;
     // Hanger hook
     g.lineStyle(2, 0x7f8c8d, 1);
     g.strokeCircle(87, sy - 2, 4);
@@ -159,20 +169,20 @@ function drawBoutiqueDecor(scene) {
   // RIGHT WALL: Boutique Full-Length Fitting Mirror
   // Shadow
   g.fillStyle(0x000000, 0.15);
-  g.fillRoundedRect(615, 520, 36, 150, 6);
+  g.fillRoundedRect(615, 480, 36, 150, 6);
   // Gold gilded frame
   g.fillStyle(0xd4af37, 1.0);
-  g.fillRoundedRect(612, 515, 32, 145, 6);
+  g.fillRoundedRect(612, 475, 32, 145, 6);
   // Mirror glass pane
   g.fillStyle(0xe0f7fa, 0.85);
-  g.fillRoundedRect(616, 520, 24, 135, 4);
+  g.fillRoundedRect(616, 480, 24, 135, 4);
   // Diagonal glass glare shine
   g.fillStyle(0xffffff, 0.5);
   g.beginPath();
-  g.moveTo(618, 530);
-  g.lineTo(636, 522);
-  g.lineTo(628, 570);
-  g.lineTo(618, 580);
+  g.moveTo(618, 490);
+  g.lineTo(636, 482);
+  g.lineTo(628, 530);
+  g.lineTo(618, 540);
   g.closePath();
   g.fillPath();
 
@@ -185,6 +195,16 @@ function drawBoutiqueDecor(scene) {
   g.fillCircle(112, 1012, 17);
   g.fillStyle(0x2ecc71, 1.0);
   g.fillCircle(110, 1008, 12);
+
+  // BOTTOM RIGHT: Accessories & Hat Display Shelf
+  g.fillStyle(0x000000, 0.15);
+  g.fillRoundedRect(605, 995, 38, 55, 6);
+  g.fillStyle(0x8d6e63, 1.0);
+  g.fillRoundedRect(602, 990, 34, 50, 6);
+  // Mini hat on shelf
+  g.fillStyle(0xf39c12, 1.0);
+  g.fillCircle(619, 1005, 8);
+  g.fillRect(611, 1007, 16, 3);
 }
 
 /**
