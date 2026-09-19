@@ -1,11 +1,13 @@
 /**
  * Fitventure - Main 3D Game Bootstrap & Render Loop
+ * Perspective: Low-Poly 3D Isometric Top-Down
  * Tech Stack: Three.js r128 + HTML/CSS UI Overlay
  * Orchestrates:
- * 1. OrthographicCamera with crisp isometric top-down projection.
- * 2. Directional sunlight with soft shadow maps and pastel ambient fill (No Glare).
- * 3. Raycaster clicking on 3D workstations and affordable red arrow badge.
- * 4. 60fps game loop driving character waddle, customer spawner, street traffic, and coin physics.
+ * 1. OrthographicCamera with ~37° tilt angle clearly displaying front faces of avatars, tables, and cars.
+ * 2. Directional sunlight with soft shadow maps and pastel ambient fill (Cozy Eatventure Palette).
+ * 3. Raycaster clicking on 3D workstations and affordable pulsing red arrow badge.
+ * 4. Screen-space projected tooltip card anchored above 3D tailoring table.
+ * 5. 60fps game loop driving character waddle, customer spawner, street traffic, and coin physics.
  */
 
 import { GAME_CONFIG, gameState } from './config.js';
@@ -14,7 +16,7 @@ import { SewingStation, JeansStation, HatsStation, FloatingCoinSpawner } from '.
 import { CharacterManager } from './characters.js';
 import { UIManager } from './ui.js';
 
-// Simple Event Emitter for decoupled communication
+// Event Emitter for decoupled communication
 class EventEmitter {
   constructor() {
     this.events = new Map();
@@ -56,7 +58,7 @@ export class FitventureApp {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
 
-    // 3. Orthographic Camera (Eatventure Signature Isometric Top-Down)
+    // 3. Orthographic Camera (Tilted down at ~37° to clearly reveal front faces)
     const aspect = width / height;
     const frustum = GAME_CONFIG.camera.frustumSize;
     this.camera = new THREE.OrthographicCamera(
@@ -72,7 +74,7 @@ export class FitventureApp {
     this.camera.position.set(camCfg.position.x, camCfg.position.y, camCfg.position.z);
     this.camera.lookAt(camCfg.lookAt.x, camCfg.lookAt.y, camCfg.lookAt.z);
 
-    // 4. Lighting Setup (Balanced Warm Sunlight & Soft Ambient Occlusion Tone)
+    // 4. Balanced Warm Lighting (Warm Sunlight & Ambient Occlusion Fill)
     const lightCfg = GAME_CONFIG.lighting;
 
     const ambientLight = new THREE.AmbientLight(lightCfg.ambientColor, lightCfg.ambientIntensity);
@@ -103,7 +105,7 @@ export class FitventureApp {
   }
 
   initGame() {
-    // 3D Environment (Terrain, street traffic, umbrellas, counter)
+    // 3D Environment (Terrain, nature borders, street traffic, umbrellas, counter)
     this.worldManager = new WorldManager(this.scene);
 
     // 3D Workstations
@@ -132,6 +134,7 @@ export class FitventureApp {
 
     // Raycasting click detection on 3D objects
     window.addEventListener('pointerdown', (e) => {
+      // Only process clicks on the WebGL canvas
       if (e.target.tagName !== 'CANVAS') return;
 
       this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -155,10 +158,19 @@ export class FitventureApp {
 
         if (hit && hit.userData) {
           if (hit.userData.type === 'station') {
-            this.events.emit('openStationUpgrade', { station: hit.userData.stationId });
+            const anchorPos = new THREE.Vector3(-2.3, 2.1, 3.8);
+            this.events.emit('openStationUpgrade', {
+              station: hit.userData.stationId,
+              position: anchorPos
+            });
           } else if (hit.userData.type === 'unlock') {
             this.events.emit('openUnlockModal', hit.userData);
           }
+        }
+      } else {
+        // Tap on ground closes station card
+        if (this.uiManager) {
+          this.uiManager.closeStationCard();
         }
       }
     });
@@ -198,6 +210,11 @@ export class FitventureApp {
     if (this.sewingStation) this.sewingStation.update(delta, time);
     if (this.characterManager) this.characterManager.update(delta, this.camera, window.innerWidth, window.innerHeight);
     if (this.coinSpawner) this.coinSpawner.update(delta);
+
+    // Screen-space position tracking for anchored station card
+    if (this.uiManager) {
+      this.uiManager.updateStationCardPosition(this.camera, window.innerWidth, window.innerHeight);
+    }
 
     this.renderer.render(this.scene, this.camera);
   }

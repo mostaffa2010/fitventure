@@ -3,8 +3,8 @@
  * Perspective: Low-Poly 3D Isometric Top-Down
  * Tech Stack: Three.js r128
  * Features:
- * 1. Soft, warm sidewalk concrete (0xd9dfdf) with subtle paving grid lines (No harsh white glare!).
- * 2. Rich green nature borders (0x5fa84b) on left/right with stylized bushes and rounded trees.
+ * 1. Tightly framed concrete walkway (0xd9dfdf) with subtle paving lines (No harsh white glare!).
+ * 2. Lush minimalist green grass margins (0x5fa84b) on left/right with cute sphere trees & rounded bushes.
  * 3. Warm wooden boutique counter (caramel oak 0xb87333 / 0xc68642) with dual silver cashier registers facing street.
  * 4. Inward-oriented blue/white striped umbrellas gracefully framing the counter.
  * 5. Dynamic street traffic (Yellow taxi, Blue sedan) driving left-to-right with puffing white exhaust particles.
@@ -138,7 +138,7 @@ export class TrafficManager {
       carGroup.add(wheel);
     });
 
-    // 5. Headlights (Facing +X direction of travel)
+    // 5. Headlights
     const lightGeo = new THREE.BoxGeometry(0.1, 0.2, 0.3);
     const lightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
     const l1 = new THREE.Mesh(lightGeo, lightMat);
@@ -199,10 +199,10 @@ export class WorldManager {
   }
 
   /**
-   * Terrain with soft warm sidewalk concrete (0xd9dfdf) & subtle paving lines (No Glare!)
+   * Terrain: Tightly framed walkway with soft warm concrete (0xd9dfdf) & paving lines
    */
   buildTerrain() {
-    const { colors } = GAME_CONFIG;
+    const { colors, layout } = GAME_CONFIG;
 
     // 1. Asphalt Street (Z: -16 to -5)
     const streetGeo = new THREE.BoxGeometry(42, 0.4, 11);
@@ -216,7 +216,7 @@ export class WorldManager {
     const gutterGeo = new THREE.BoxGeometry(42, 0.05, 0.15);
     const gutterMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
     const gutterMesh = new THREE.Mesh(gutterGeo, gutterMat);
-    gutterMesh.position.set(0, 0.02, -5.1);
+    gutterMesh.position.set(0, 0.02, -5.05);
     this.worldGroup.add(gutterMesh);
 
     // Yellow Dashed Lane Dividers
@@ -228,154 +228,156 @@ export class WorldManager {
       this.worldGroup.add(dash);
     }
 
-    // White Zebra Crosswalk Stripes (Z: -14.5 to -5.8)
+    // White Zebra Crosswalk Stripes (Z: -14.5 to -5.6)
     const stripeGeo = new THREE.BoxGeometry(3.6, 0.04, 0.55);
     const stripeMat = new THREE.MeshBasicMaterial({ color: colors.crosswalk });
-    for (let z = -14.5; z <= -6.0; z += 1.05) {
+    for (let z = -14.5; z <= -5.8; z += 1.05) {
       const stripe = new THREE.Mesh(stripeGeo, stripeMat);
       stripe.position.set(0, 0.02, z);
       this.worldGroup.add(stripe);
     }
 
-    // 2. Soft Warm Sidewalk Concrete (Z: -5.0 to 14.0) - Replaces blinding white!
-    const walkGeo = new THREE.BoxGeometry(14.8, 0.38, 19);
+    // 2. Tightly Framed Soft Warm Sidewalk Concrete (Width: 12.2, Z: -4.8 to 14.2)
+    const walkW = layout.walkway.width;
+    const walkD = layout.walkway.depth;
+    const walkGeo = new THREE.BoxGeometry(walkW, 0.38, walkD);
     const walkMat = new THREE.MeshLambertMaterial({ color: colors.sidewalk });
     const walkMesh = new THREE.Mesh(walkGeo, walkMat);
-    walkMesh.position.set(0, -0.19, 4.5);
+    walkMesh.position.set(0, -0.19, layout.walkway.z);
     walkMesh.receiveShadow = true;
     this.worldGroup.add(walkMesh);
 
     // Sidewalk Curb Bevel
-    const curbGeo = new THREE.BoxGeometry(14.8, 0.2, 0.25);
+    const curbGeo = new THREE.BoxGeometry(walkW, 0.2, 0.25);
     const curbMat = new THREE.MeshLambertMaterial({ color: colors.curb });
     const curbMesh = new THREE.Mesh(curbGeo, curbMat);
-    curbMesh.position.set(0, 0.1, -5.1);
+    curbMesh.position.set(0, 0.1, -4.9);
     this.worldGroup.add(curbMesh);
 
-    // Subtle Paving Grid Lines (Fine geometric sidewalk slabs)
+    // Subtle Paving Grid Lines (Eatventure Style clean sidewalk slabs)
     const gridLineMat = new THREE.MeshBasicMaterial({ color: colors.sidewalkTile });
 
     // Horizontal tile lines
-    for (let z = -4.5; z <= 13.5; z += 2.2) {
-      const lineGeo = new THREE.BoxGeometry(14.6, 0.02, 0.06);
+    for (let z = -4.0; z <= 13.5; z += 2.0) {
+      const lineGeo = new THREE.BoxGeometry(walkW - 0.2, 0.02, 0.05);
       const line = new THREE.Mesh(lineGeo, gridLineMat);
       line.position.set(0, 0.01, z);
       this.worldGroup.add(line);
     }
 
     // Vertical tile lines
-    for (let x = -6.6; x <= 6.6; x += 2.2) {
-      const lineGeo = new THREE.BoxGeometry(0.06, 0.02, 18.8);
+    for (let x = -walkW / 2 + 2.0; x <= walkW / 2 - 2.0; x += 2.0) {
+      const lineGeo = new THREE.BoxGeometry(0.05, 0.02, walkD - 0.4);
       const line = new THREE.Mesh(lineGeo, gridLineMat);
-      line.position.set(x, 0.01, 4.5);
+      line.position.set(x, 0.01, layout.walkway.z);
       this.worldGroup.add(line);
     }
   }
 
   /**
-   * Surrounded By Nature: Rich green grass borders (0x5fa84b) with bushes & rounded trees
+   * Surrounded By Nature: Lush minimalist green grass margins with cute sphere trees & rounded bushes
    */
   buildNatureBorders() {
-    const { colors } = GAME_CONFIG;
+    const { colors, layout } = GAME_CONFIG;
+    const walkW = layout.walkway.width;
 
-    // 1. Left Rich Green Grass Strip (X: -20 to -7.4)
-    const leftGrassGeo = new THREE.BoxGeometry(13, 0.42, 20);
+    // 1. Left Lush Green Grass Margin (X: -walkW/2 to -20)
+    const marginW = 14.0;
+    const grassGeo = new THREE.BoxGeometry(marginW, 0.42, 20.0);
     const grassMat = new THREE.MeshLambertMaterial({ color: colors.grassBorder });
-    const leftGrass = new THREE.Mesh(leftGrassGeo, grassMat);
-    leftGrass.position.set(-13.8, -0.18, 4.5);
+
+    const leftGrass = new THREE.Mesh(grassGeo, grassMat);
+    leftGrass.position.set(-walkW / 2 - marginW / 2, -0.18, 4.5);
     leftGrass.receiveShadow = true;
     this.worldGroup.add(leftGrass);
 
-    // 2. Right Rich Green Grass Strip (X: 7.4 to 20)
-    const rightGrassGeo = new THREE.BoxGeometry(13, 0.42, 20);
-    const rightGrass = new THREE.Mesh(rightGrassGeo, grassMat);
-    rightGrass.position.set(13.8, -0.18, 4.5);
+    // 2. Right Lush Green Grass Margin (X: walkW/2 to 20)
+    const rightGrass = new THREE.Mesh(grassGeo, grassMat);
+    rightGrass.position.set(walkW / 2 + marginW / 2, -0.18, 4.5);
     rightGrass.receiveShadow = true;
     this.worldGroup.add(rightGrass);
 
-    // 3. Rounded Low-Poly Trees on Left and Right borders
-    this.buildCuteTree(-9.5, -1.5);
-    this.buildCuteTree(-10.8, 4.2);
-    this.buildCuteTree(-9.2, 9.8);
+    // 3. Simple, Cute Low-Poly Sphere Trees along the grass margins
+    this.buildCuteSphereTree(-8.2, -1.2, colors.treeFoliage);
+    this.buildCuteSphereTree(-9.5, 4.2, colors.treeFoliageAlt);
+    this.buildCuteSphereTree(-8.0, 9.8, colors.treeFoliage);
 
-    this.buildCuteTree(9.5, -1.5);
-    this.buildCuteTree(10.8, 4.2);
-    this.buildCuteTree(9.2, 9.8);
+    this.buildCuteSphereTree(8.2, -1.2, colors.treeFoliage);
+    this.buildCuteSphereTree(9.5, 4.2, colors.treeFoliageAlt);
+    this.buildCuteSphereTree(8.0, 9.8, colors.treeFoliage);
 
-    // 4. Stylized Low-Poly Green Bushes flanking the edges
-    this.buildBushCluster(-7.8, -3.8);
-    this.buildBushCluster(-7.8, 1.2);
-    this.buildBushCluster(-7.8, 6.8);
-    this.buildBushCluster(-7.8, 12.0);
+    // 4. Clean Rounded Bushes along the margins
+    this.buildRoundedBush(-6.8, -3.5);
+    this.buildRoundedBush(-6.8, 1.5);
+    this.buildRoundedBush(-6.8, 6.8);
+    this.buildRoundedBush(-6.8, 12.0);
 
-    this.buildBushCluster(7.8, -3.8);
-    this.buildBushCluster(7.8, 1.2);
-    this.buildBushCluster(7.8, 6.8);
-    this.buildBushCluster(7.8, 12.0);
+    this.buildRoundedBush(6.8, -3.5);
+    this.buildRoundedBush(6.8, 1.5);
+    this.buildRoundedBush(6.8, 6.8);
+    this.buildRoundedBush(6.8, 12.0);
   }
 
-  buildCuteTree(x, z) {
+  /**
+   * Minimalist Low-Poly Sphere Tree: Clean wooden trunk + pure sphere foliage
+   */
+  buildCuteSphereTree(x, z, foliageColor) {
     const treeGroup = new THREE.Group();
     treeGroup.position.set(x, 0, z);
 
-    // Soft Contact Shadow
-    const shadowGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.02, 16);
+    // Soft Circular Drop Shadow Disc
+    const shadowGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.02, 16);
     const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 });
     const shadow = new THREE.Mesh(shadowGeo, shadowMat);
     shadow.position.y = 0.04;
     treeGroup.add(shadow);
 
-    // Wooden Trunk
-    const trunkGeo = new THREE.CylinderGeometry(0.24, 0.32, 2.4, 8);
+    // Smooth Wooden Trunk
+    const trunkGeo = new THREE.CylinderGeometry(0.22, 0.28, 2.2, 10);
     const trunkMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.treeTrunk });
     const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = 1.2;
+    trunk.position.y = 1.1;
     trunk.castShadow = true;
     treeGroup.add(trunk);
 
-    // Fluffy Layered Green Foliage (Compound rounded low-poly spheres)
-    const folColors = [0x48bb78, 0x38a169, 0x2f855a];
+    // Main Sphere Foliage
+    const mainSphereGeo = new THREE.SphereGeometry(1.45, 16, 16);
+    const mainSphereMat = new THREE.MeshLambertMaterial({ color: foliageColor });
+    const mainSphere = new THREE.Mesh(mainSphereGeo, mainSphereMat);
+    mainSphere.position.y = 2.8;
+    mainSphere.castShadow = true;
+    treeGroup.add(mainSphere);
 
-    // Bottom Foliage Layer
-    const botGeo = new THREE.DodecahedronGeometry(1.6, 1);
-    const botMat = new THREE.MeshLambertMaterial({ color: folColors[1] });
-    const bot = new THREE.Mesh(botGeo, botMat);
-    bot.position.y = 2.8;
-    bot.castShadow = true;
-    treeGroup.add(bot);
-
-    // Mid/Top Foliage Layer
-    const topGeo = new THREE.DodecahedronGeometry(1.2, 1);
-    const topMat = new THREE.MeshLambertMaterial({ color: folColors[0] });
-    const top = new THREE.Mesh(topGeo, topMat);
-    top.position.set(0.1, 4.0, 0.1);
-    top.castShadow = true;
-    treeGroup.add(top);
+    // Top Offset Accent Sphere
+    const topSphereGeo = new THREE.SphereGeometry(0.9, 14, 14);
+    const topSphereMat = new THREE.MeshLambertMaterial({ color: 0x86efac });
+    const topSphere = new THREE.Mesh(topSphereGeo, topSphereMat);
+    topSphere.position.set(0.15, 3.8, 0.1);
+    topSphere.castShadow = true;
+    treeGroup.add(topSphere);
 
     this.worldGroup.add(treeGroup);
   }
 
-  buildBushCluster(x, z) {
+  /**
+   * Simple, Clean Rounded Bush
+   */
+  buildRoundedBush(x, z) {
     const cluster = new THREE.Group();
     cluster.position.set(x, 0, z);
 
-    const bushMat1 = new THREE.MeshLambertMaterial({ color: 0x38a169 });
+    const bushMat1 = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.bushGreen });
     const bushMat2 = new THREE.MeshLambertMaterial({ color: 0x22c55e });
 
-    const b1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 1), bushMat1);
-    b1.position.set(0, 0.55, 0);
+    const b1 = new THREE.Mesh(new THREE.SphereGeometry(0.65, 12, 12), bushMat1);
+    b1.position.set(0, 0.5, 0);
     b1.castShadow = true;
     cluster.add(b1);
 
-    const b2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5, 1), bushMat2);
-    b2.position.set(0.2, 0.42, 0.5);
+    const b2 = new THREE.Mesh(new THREE.SphereGeometry(0.48, 12, 12), bushMat2);
+    b2.position.set(0.2, 0.38, 0.4);
     b2.castShadow = true;
     cluster.add(b2);
-
-    const b3 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45, 1), bushMat1);
-    b3.position.set(-0.2, 0.38, -0.4);
-    b3.castShadow = true;
-    cluster.add(b3);
 
     this.worldGroup.add(cluster);
   }
@@ -446,7 +448,7 @@ export class WorldManager {
     this.counterGroup.add(rightTopCap);
 
     // 3. Vitrine Display Showcase in Center
-    const vitrineGeo = new THREE.BoxGeometry(2.0, 0.7, 0.8);
+    const vitrineGeo = new THREE.BoxGeometry(1.9, 0.7, 0.8);
     const vitrineMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
     const vitrineMesh = new THREE.Mesh(vitrineGeo, vitrineMat);
     vitrineMesh.position.set(0, cfg.height / 2, -cfg.depth / 2 - 0.1);
@@ -469,9 +471,6 @@ export class WorldManager {
     this.buildSilverCashierRegister(1.8, cfg.height + 0.18);
   }
 
-  /**
-   * Silver Cashier Register facing the street (towards customers at -Z)
-   */
   buildSilverCashierRegister(x, y) {
     const regGroup = new THREE.Group();
     regGroup.position.set(x, y, -0.15);
@@ -500,7 +499,7 @@ export class WorldManager {
 
     // Silver Touchscreen Display facing Street (-Z)
     const screenBoxGeo = new THREE.BoxGeometry(0.62, 0.44, 0.08);
-    screenBoxGeo.rotateX(Math.PI / 10); // Angled down toward customer
+    screenBoxGeo.rotateX(Math.PI / 10);
     const screenBox = new THREE.Mesh(screenBoxGeo, silverMat);
     screenBox.position.set(0, 0.52, -0.15);
     screenBox.castShadow = true;
@@ -515,7 +514,7 @@ export class WorldManager {
     display.position.set(0, 0.52, -0.2);
     regGroup.add(display);
 
-    // Barcode Scanner Wand on the side
+    // Barcode Scanner Wand
     const scanGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.3, 8);
     scanGeo.rotateZ(Math.PI / 4);
     const scanMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
@@ -532,9 +531,7 @@ export class WorldManager {
   buildPatioUmbrellas() {
     const { layout } = GAME_CONFIG;
 
-    // Left umbrella tilted slightly inward to the right (rotation.z = -0.08)
     this.umbrellaLeft = this.create3DUmbrella(layout.umbrellas.left.x, layout.umbrellas.left.z, -0.08);
-    // Right umbrella tilted slightly inward to the left (rotation.z = 0.08)
     this.umbrellaRight = this.create3DUmbrella(layout.umbrellas.right.x, layout.umbrellas.right.z, 0.08);
 
     this.worldGroup.add(this.umbrellaLeft);
@@ -576,7 +573,7 @@ export class WorldManager {
 
     const canopyGroup = new THREE.Group();
     canopyGroup.position.y = 4.2;
-    canopyGroup.rotation.z = inwardTilt; // Graceful inward framing angle!
+    canopyGroup.rotation.z = inwardTilt;
 
     for (let i = 0; i < segments; i++) {
       const a1 = (i * 2 * Math.PI) / segments;

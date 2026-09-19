@@ -5,43 +5,47 @@
  */
 
 export const GAME_CONFIG = {
-  // 3D Orthographic Camera Settings (Eatventure Signature Top-Down Angle)
+  // 3D Orthographic Camera Settings
+  // Tilted at ~37° (35-40° range) to clearly reveal character front faces, table fronts, and car profiles
   camera: {
-    position: { x: 0, y: 32, z: 24 },
-    lookAt: { x: 0, y: 0, z: 1 },
-    frustumSize: 22
+    position: { x: 0, y: 19.5, z: 26.5 },
+    lookAt: { x: 0, y: 0.5, z: 1.5 },
+    frustumSize: 20
   },
 
-  // Balanced Warm Lighting (No Glare, Saturated Pastel Tones)
+  // Balanced Warm Lighting (Cozy Eatventure Palette, No Glare)
   lighting: {
     ambientColor: 0xfffaed,
-    ambientIntensity: 0.65,
+    ambientIntensity: 0.68,
     sunColor: 0xfff8ee,
-    sunIntensity: 0.80, // Calibrated down from 0.95 to eliminate harsh glare
-    sunPosition: { x: 14, y: 30, z: 18 },
+    sunIntensity: 0.82,
+    sunPosition: { x: 12, y: 26, z: 18 },
     hemiSky: 0xe0f2fe,
-    hemiGround: 0x5fa84b, // Warm green bounce from surrounding grass
-    hemiIntensity: 0.40
+    hemiGround: 0x5fa84b, // Warm lush green bounce from surrounding grass margins
+    hemiIntensity: 0.42
   },
 
   // World 3D Layout Coordinates (X: left/right, Y: up/down, Z: depth)
   layout: {
-    // Street (Z: -18 to -6)
+    // Street (Z: -16 to -5)
     streetZ: -10.5,
-    streetWidth: 40,
+    streetWidth: 42,
     streetDepth: 11,
     crosswalkX: 0,
 
-    // Sidewalk & Service Area
-    sidewalkZ: -3.8,
-    sidewalkDepth: 3.4,
+    // Tightly Framed Concrete Walkway (Width: 12.0 units, from X: -6.0 to +6.0)
+    walkway: {
+      width: 12.0,
+      depth: 19.0,
+      z: 4.5
+    },
 
     // Front Serving Counter (Z: 0)
     counter: {
       x: 0,
       y: 0.8,
       z: 0,
-      width: 7.6,
+      width: 7.2,
       height: 1.6,
       depth: 1.8,
       customerSlots: [
@@ -53,8 +57,8 @@ export const GAME_CONFIG = {
 
     // Inward-Framing Striped Umbrellas
     umbrellas: {
-      left: { x: -5.2, z: 0.2 },
-      right: { x: 5.2, z: 0.2 }
+      left: { x: -4.8, z: 0.2 },
+      right: { x: 4.8, z: 0.2 }
     },
 
     // Workstation 1: Sewing Table (T-Shirts)
@@ -114,23 +118,24 @@ export const GAME_CONFIG = {
     ]
   },
 
-  // Color Palette (Calibrated Eatventure Aesthetic)
+  // Color Palette (Eatventure Signature Style)
   colors: {
     asphalt: 0x374151,
     asphaltMarking: 0x475569,
     crosswalk: 0xf8fafc,
-    sidewalk: 0xd9dfdf, // Soft warm concrete tone
-    sidewalkTile: 0xc8d0d0, // Subtle paving grid lines
+    sidewalk: 0xd9dfdf,      // Soft warm concrete tone
+    sidewalkTile: 0xc8d0d0,  // Subtle paving grid lines
     curb: 0xbac3c3,
-    grassBorder: 0x5fa84b, // Rich green nature borders
-    treeTrunk: 0x78350f,
-    treeFoliage: 0x48bb78,
-    bushGreen: 0x38a169,
+    grassBorder: 0x5fa84b,   // Lush vibrant grass margins
+    treeTrunk: 0x78350f,     // Warm wood brown
+    treeFoliage: 0x4ade80,   // Fresh sphere tree green
+    treeFoliageAlt: 0x22c55e,// Deep lush sphere tree green
+    bushGreen: 0x16a34a,     // Clean rounded bush green
     vanBody: 0x0d9488,
     vanRoof: 0x14b8a6,
     vanTrim: 0x0f766e,
     vanFloor: 0xd9dfdf,
-    counterWood: 0xb87333, // Warm caramel oak
+    counterWood: 0xb87333,   // Warm caramel oak
     counterTop: 0xc68642,
     counterTrim: 0x9a5b23,
     registerSilver: 0x94a3b8,

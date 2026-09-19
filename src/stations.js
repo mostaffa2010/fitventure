@@ -1,11 +1,13 @@
 /**
  * Fitventure - 3D Workstations & Crafting Tables
+ * Perspective: Low-Poly 3D Isometric Top-Down
  * Tech Stack: Three.js r128
  * Features:
  * 1. 3D Sewing Table: Warm caramel wood base (0xb87333), miniature stylized 3D sewing machine,
  *    golden scissors, colorful fabric roll, and neat stack of folded pastel T-shirts.
- * 2. Bouncing 3D Red Arrow Badge (↑): Pulsing red circular disc with bold white up-arrow,
- *    visible and interactive ONLY when playerCoins >= sewingStation.nextCost and not maxed.
+ * 2. Pulsing Red Upgrade Badge (↑): Crisp circular red disc with clean white border and bold white up-arrow,
+ *    anchored at top-right corner of table with continuous vertical bounce and scale pulse (1.0 to 1.15)
+ *    active ONLY when player coins >= next upgrade cost.
  * 3. 3D Radial Circular Progress Ring (Torus arc) filling overhead during worker crafting.
  * 4. Station 2 (Jeans Table) & Station 3 (Hats Rack): Dotted unlockable bounding boxes in Stage 2.
  * 5. Floating 3D Gold Coins Spawner with arcing bezier physics.
@@ -226,12 +228,11 @@ export class SewingStation {
     rollGroup.rotation.z = Math.PI / 2;
 
     const fabricGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.65, 16);
-    const fabricMat = new THREE.MeshLambertMaterial({ color: 0x06b6d4 }); // Vibrant turquoise
+    const fabricMat = new THREE.MeshLambertMaterial({ color: 0x06b6d4 });
     const fabricRoll = new THREE.Mesh(fabricGeo, fabricMat);
     fabricRoll.castShadow = true;
     rollGroup.add(fabricRoll);
 
-    // Inner Cardboard Tube Core
     const coreGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.68, 12);
     const coreMat = new THREE.MeshLambertMaterial({ color: 0xd97706 });
     const core = new THREE.Mesh(coreGeo, coreMat);
@@ -240,7 +241,7 @@ export class SewingStation {
     this.group.add(rollGroup);
 
     // 7. Neat Stack of Folded Pastel T-Shirts (Far Left)
-    const pastelColors = [0xa7f3d0, 0xfecdd3, 0xbae6fd]; // Mint, Peach, Sky Blue
+    const pastelColors = [0xa7f3d0, 0xfecdd3, 0xbae6fd];
     pastelColors.forEach((col, idx) => {
       const shirtGeo = new THREE.BoxGeometry(0.65, 0.12, 0.55);
       const shirtMat = new THREE.MeshLambertMaterial({ color: col });
@@ -252,37 +253,51 @@ export class SewingStation {
   }
 
   /**
-   * Bouncing 3D Red Arrow Badge (↑)
-   * Anchored at top-left of the sewing station table.
-   * Visible ONLY when playerCoins >= sewingStation.nextCost and not maxed.
+   * Pulsing Red Upgrade Badge (↑)
+   * Anchored at the TOP-RIGHT corner of the tailoring table.
+   * Features a clean white border and a bold white up-arrow (↑).
+   * Active ONLY when player coins >= next upgrade cost.
    */
   buildRedArrowBadge() {
     this.badgeGroup = new THREE.Group();
-    this.badgeGroup.position.set(-this.width / 2 - 0.2, this.height + 1.2, -this.depth / 2);
+    // Anchored at top-right corner of table
+    this.baseBadgeX = this.width / 2 - 0.1;
+    this.baseBadgeY = this.height + 0.9;
+    this.baseBadgeZ = -this.depth / 2 + 0.25;
+
+    this.badgeGroup.position.set(this.baseBadgeX, this.baseBadgeY, this.baseBadgeZ);
     this.group.add(this.badgeGroup);
 
-    // Red Cylinder Disc facing camera angle
-    const discGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.14, 24);
-    discGeo.rotateX(Math.PI / 3);
-    const discMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
-    const disc = new THREE.Mesh(discGeo, discMat);
-    disc.castShadow = true;
-    this.badgeGroup.add(disc);
+    // 1. Crisp White Outer Border Ring Disc
+    const borderGeo = new THREE.CylinderGeometry(0.56, 0.56, 0.1, 28);
+    borderGeo.rotateX(Math.PI / 3.4); // Angled to face camera
+    const borderMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const borderMesh = new THREE.Mesh(borderGeo, borderMat);
+    borderMesh.castShadow = true;
+    this.badgeGroup.add(borderMesh);
 
-    // White Up-Arrow (↑) symbol created with canvas texture for pixel-perfect sharpness
+    // 2. Vibrant Red Circular Disc Center
+    const discGeo = new THREE.CylinderGeometry(0.46, 0.46, 0.12, 28);
+    discGeo.rotateX(Math.PI / 3.4);
+    const discMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
+    const discMesh = new THREE.Mesh(discGeo, discMat);
+    discMesh.castShadow = true;
+    this.badgeGroup.add(discMesh);
+
+    // 3. Crisp Bold White Up-Arrow (↑) Canvas Texture
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = 256;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 84px Fredoka, Nunito, sans-serif';
+    ctx.font = '900 160px "Fredoka", "Nunito", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('↑', 64, 60);
+    ctx.fillText('↑', 128, 120);
 
     const arrowTex = new THREE.CanvasTexture(canvas);
-    const arrowPlaneGeo = new THREE.PlaneGeometry(0.8, 0.8);
-    arrowPlaneGeo.rotateX(-Math.PI / 6);
+    const arrowPlaneGeo = new THREE.PlaneGeometry(0.72, 0.72);
+    arrowPlaneGeo.rotateX(-Math.PI / 5.2);
     const arrowPlaneMat = new THREE.MeshBasicMaterial({
       map: arrowTex,
       transparent: true,
@@ -292,10 +307,14 @@ export class SewingStation {
     arrowPlane.position.set(0, 0.05, 0.05);
     this.badgeGroup.add(arrowPlane);
 
+    // Enable raycasting click interaction
     this.badgeGroup.userData = { type: 'station', stationId: 'sewing' };
-    disc.userData = { type: 'station', stationId: 'sewing' };
+    borderMesh.userData = { type: 'station', stationId: 'sewing' };
+    discMesh.userData = { type: 'station', stationId: 'sewing' };
     arrowPlane.userData = { type: 'station', stationId: 'sewing' };
-    this.clickTargets.push(disc);
+
+    this.clickTargets.push(borderMesh);
+    this.clickTargets.push(discMesh);
     this.clickTargets.push(arrowPlane);
 
     this.updateRedBadgeVisibility();
@@ -308,8 +327,12 @@ export class SewingStation {
 
   update(delta, time) {
     if (this.badgeGroup && this.badgeGroup.visible) {
-      const pulse = 1.0 + Math.sin(time * 6.5) * 0.15;
+      // Smooth scale pulse (1.0 to 1.15)
+      const pulse = 1.075 + Math.sin(time * 6.0) * 0.075;
       this.badgeGroup.scale.set(pulse, pulse, pulse);
+
+      // Continuous smooth vertical bounce
+      this.badgeGroup.position.y = this.baseBadgeY + Math.sin(time * 6.0) * 0.14;
     }
   }
 
