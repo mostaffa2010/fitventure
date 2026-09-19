@@ -5,7 +5,7 @@
  * Shoppers ordering T-shirts, Jeans, and Hats, procedural waddle animations.
  */
 
-import { GAME_CONFIG, gameState } from './config.js';
+import { GAME_CONFIG, FONT_FAMILY, gameState } from './config.js';
 import { RadialGauge } from './stations.js';
 
 /**
@@ -513,8 +513,8 @@ export class Shopper {
     this.speechBubble.add(this.productIcon);
 
     this.orderText = this.scene.add.text(14, -5, 'x1', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '15px',
+      fontFamily: FONT_FAMILY,
+      fontSize: '20px',
       fontStyle: 'bold',
       color: '#0f172a'
     }).setOrigin(0.5);
@@ -759,8 +759,8 @@ export class CharacterManager {
     pop.add(bg);
 
     const txt = this.scene.add.text(0, 0, text, {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '14px',
+      fontFamily: FONT_FAMILY,
+      fontSize: '18px',
       fontStyle: 'bold',
       color: '#86efac'
     }).setOrigin(0.5);

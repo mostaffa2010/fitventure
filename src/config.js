@@ -1,9 +1,26 @@
 /**
  * Fitventure - Configuration & Global State
  * Perspective: 2.5D Top-Down Orthographic Idle Tycoon
- * Resolution: 720 x 1280 (Mobile Portrait)
- * Camera Zoom: 1.45x close-up view to eliminate empty space and maximize tactile readability.
+ * Typography: 'Fredoka', 'Nunito', sans-serif (Commercial Juicy Cartoon Aesthetic)
+ * Stage 1 Cap: Level 25 max for Sewing Station in Stage 1.
  */
+
+// Dynamically inject Fredoka & Nunito Google Fonts if not present
+export function loadGoogleFont() {
+  if (typeof document !== 'undefined') {
+    const fontId = 'fitventure-juicy-fonts';
+    if (!document.getElementById(fontId)) {
+      const link = document.createElement('link');
+      link.id = fontId;
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap';
+      document.head.appendChild(link);
+    }
+  }
+}
+
+// Global Cartoon Font Stack
+export const FONT_FAMILY = "'Fredoka', 'Nunito', 'Segoe UI', Arial, sans-serif";
 
 export const GAME_CONFIG = {
   width: 720,
@@ -34,19 +51,19 @@ export const GAME_CONFIG = {
       customerStopY: 300,
       workerStopY: 418,
       customerSlots: [
-        { id: 0, x: 300, y: 300 }, // Slot 1 (Left Register)
-        { id: 1, x: 420, y: 300 }  // Slot 2 (Right Register)
+        { id: 0, x: 300, y: 300 }, // Slot 1
+        { id: 1, x: 420, y: 300 }  // Slot 2
       ]
     },
 
-    // Patio Umbrellas (Stage 1 Flanking)
+    // 3D Conical Patio Umbrellas
     umbrellas: {
       left: { x: 135, y: 360 },
       right: { x: 585, y: 360 }
     },
 
     // Workstation Slots
-    // Station 1: Sewing Table (T-Shirts) - Active initially
+    // Station 1: Sewing Table (T-Shirts)
     station1: {
       id: 'sewing',
       name: 'Sewing Table',
@@ -54,13 +71,13 @@ export const GAME_CONFIG = {
       icon: '👕',
       x: 275,
       y: 505,
-      width: 175,
-      height: 92,
+      width: 180,
+      height: 94,
       workerStopX: 275,
       workerStopY: 460
     },
 
-    // Station 2: Jeans Table - Dotted outline in Stage 2 (Cost: 50)
+    // Station 2: Jeans Table (Stage 2 Unlockable - Cost: 50)
     station2: {
       id: 'jeans',
       name: 'Jeans Station',
@@ -68,14 +85,14 @@ export const GAME_CONFIG = {
       icon: '👖',
       x: 445,
       y: 505,
-      width: 175,
-      height: 92,
+      width: 180,
+      height: 94,
       unlockCost: 50,
       workerStopX: 445,
       workerStopY: 460
     },
 
-    // Station 3: Hats Rack - Dotted outline in Stage 2 after Station 2 (Cost: 100)
+    // Station 3: Hats Rack (Stage 2 Unlockable - Cost: 100)
     station3: {
       id: 'hats',
       name: 'Hats Rack',
@@ -90,13 +107,13 @@ export const GAME_CONFIG = {
       workerStopY: 585
     },
 
-    // Waiting queue slots (Pedestrians lining up on sidewalk & crosswalk)
+    // Waiting queue slots
     waitingQueue: [
-      { x: 360, y: 240 }, // Threshold
-      { x: 360, y: 185 }, // Sidewalk
-      { x: 360, y: 130 }, // Zebra crosswalk
-      { x: 360, y: 80 },  // Mid street
-      { x: 360, y: 35 }   // Upper crosswalk (Flyer / Ad unlocked)
+      { x: 360, y: 240 },
+      { x: 360, y: 185 },
+      { x: 360, y: 130 },
+      { x: 360, y: 80 },
+      { x: 360, y: 35 }
     ]
   },
 
@@ -115,10 +132,10 @@ export const GAME_CONFIG = {
     awningWhite: 0xf8fafc,
 
     // Stage 2 Fashion Van
-    vanBody: 0x0d9488,       // Retro teal / mint food truck
+    vanBody: 0x0d9488,
     vanRoof: 0x14b8a6,
     vanTrim: 0x0f766e,
-    vanFloor: 0xe5d5be,      // Interior wood parquet
+    vanFloor: 0xe5d5be,
     vanChrome: 0xe2e8f0,
 
     // Counters & Woodwork
@@ -127,7 +144,7 @@ export const GAME_CONFIG = {
     counterTrim: 0x8b5020,
     counterBevel: 0x7c3a0d,
 
-    // UI Buttons & 3D Bevels
+    // 3D UI Colors
     greenBtn: 0x22c55e,
     greenBevel: 0x15803d,
     blueBtn: 0x3b82f6,
@@ -137,7 +154,7 @@ export const GAME_CONFIG = {
     redBtn: 0xef4444,
     redBevel: 0xb91c1c,
     slateBtn: 0x64748b,
-    slateBevel: 0x475569,
+    slateBevel: 0x334155,
     bottomDeckBg: 0x881337,
 
     // Currencies & FX
@@ -162,8 +179,10 @@ export const GAME_CONFIG = {
 };
 
 /**
- * 12 Sequential Store Upgrades (Eatventure General Store Progression)
- * Upgrades disappear immediately once purchased to keep the UI clean!
+ * 12 Sequential Store Upgrades
+ * In Stage 1: Upgrades 1 to 5 are active.
+ * In Stage 2: Upgrades 6 to 12 become available.
+ * Purchased upgrades vanish immediately from the UI menu!
  */
 export const STORE_UPGRADES = [
   {
@@ -172,7 +191,7 @@ export const STORE_UPGRADES = [
     title: 'Hire Tailor Raymond',
     icon: '👔',
     cost: 100,
-    description: '+1 Worker: Assistant tailor crafts and delivers garments.',
+    description: '+1 Worker: Assistant tailor crafts & delivers garments.',
     effect: 'worker'
   },
   {
@@ -199,7 +218,7 @@ export const STORE_UPGRADES = [
     title: 'Store Flyers',
     icon: '📄',
     cost: 180,
-    description: '+1 Customer waiting capacity in the queue.',
+    description: '+1 Customer waiting capacity in queue.',
     effect: 'queue'
   },
   {
@@ -288,10 +307,10 @@ class GameState {
     this.boostDuration = 30;
     this.boostTimer = 0;
 
-    // Station 1: Sewing Table (T-Shirts)
+    // Stage 1 Cap: Exactly Level 25
     this.sewingStation = {
       level: 1,
-      maxLevel: 50,
+      maxLevel: 25, // Capped at Level 25 in Stage 1!
       baseCost: 10,
       costMultiplier: 1.18,
       baseProfit: 4,
@@ -329,9 +348,7 @@ class GameState {
       speedReductionRate: 0.96
     };
 
-    // Purchased upgrades IDs set
     this.purchasedUpgrades = new Set();
-
     this.renovateRequiredLevel = 25;
     this.listeners = new Map();
   }
@@ -396,10 +413,8 @@ class GameState {
   }
 
   getAvailableUpgrades() {
-    // Only return upgrades matching current stage or general, and not yet purchased
     return STORE_UPGRADES.filter(u => {
       if (this.isUpgradePurchased(u.id)) return false;
-      // In stage 1, show stage 1 upgrades. In stage 2, show all remaining upgrades.
       if (this.stage === 1) return u.stage === 1;
       return true;
     });
@@ -418,7 +433,8 @@ class GameState {
 
   renovateToStage2() {
     this.stage = 2;
-    // Keep coins or give stage bonus
+    // When transitioning to Stage 2, expand sewing station max level
+    this.sewingStation.maxLevel = 50;
     this.addCoins(100);
     this.emit('stageRenovated', { stage: 2 });
   }
@@ -451,22 +467,29 @@ class GameState {
   }
 
   canUpgradeSewing() {
+    // Strictly capped at Level 25 in Stage 1!
+    if (this.stage === 1 && this.sewingStation.level >= 25) return false;
     return this.sewingStation.level < this.sewingStation.maxLevel &&
            this.coins >= this.getSewingUpgradeCost();
   }
 
   upgradeSewing() {
+    if (!this.canUpgradeSewing()) return false;
     const cost = this.getSewingUpgradeCost();
     if (this.spendCoins(cost)) {
       this.sewingStation.level++;
+      const isRenovateReady = this.isRenovateUnlocked();
+
       this.emit('stationUpgraded', {
         station: 'sewing',
         level: this.sewingStation.level,
+        maxLevel: this.sewingStation.maxLevel,
         profit: this.getSewingProfit(),
         duration: this.getSewingCraftDuration(),
         nextCost: this.getSewingUpgradeCost(),
-        renovateReady: this.isRenovateUnlocked()
+        renovateReady: isRenovateReady
       });
+
       return true;
     }
     return false;
@@ -576,6 +599,9 @@ class GameState {
 }
 
 export const gameState = new GameState();
+
+// Initialize font loading
+loadGoogleFont();
 
 export const phaserConfig = {
   type: typeof Phaser !== 'undefined' ? Phaser.AUTO : 'AUTO',

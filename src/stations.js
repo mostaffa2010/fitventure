@@ -1,13 +1,15 @@
 /**
- * Fitventure - Workstations & Visual Effects
- * 1. Station 1 (Sewing Table / T-Shirts): Warm 3D wooden counter with bevels, fabric, sewing machine.
- * 2. Station 2 (Jeans Table): Pulsing dotted outline in Stage 2 until unlocked (50 coins).
- * 3. Station 3 (Hats Rack): Next dotted outline in Stage 2 once Station 2 is unlocked (100 coins).
- * 4. Front Counter: Warm oak with rounded ends, dual POS registers, vitrine display.
- * 5. Radial Progress Gauge & 3D Floating Coin Bezier particles.
+ * Fitventure - Workstations & 3D Crafting Tables
+ * 1. Station 1 (Sewing Table / T-Shirts): 3D caramel wood table, stylized white sewing machine
+ *    with silver handwheel, golden scissors, colorful thread spool, and pastel folded T-shirts.
+ * 2. Affordable Upgrade Red Arrow Badge (↑): Pulsing red circular badge anchored at top-left,
+ *    visible ONLY when player can afford the next upgrade.
+ * 3. Stage 1 Level 25 Cap: Shows "Level X / 25" and "MAX LEVEL" when capped.
+ * 4. Station 2 (Jeans Table) & Station 3 (Hats Rack): Dotted unlockable workstations.
+ * 5. Counter Station with rounded ends and Fredoka cartoon typography.
  */
 
-import { GAME_CONFIG, gameState } from './config.js';
+import { GAME_CONFIG, FONT_FAMILY, gameState } from './config.js';
 
 /**
  * Radial Progress Gauge above worker during crafting
@@ -23,11 +25,11 @@ export class RadialGauge {
     this.graphics = scene.add.graphics();
     this.container.add(this.graphics);
 
-    this.centerText = scene.add.text(0, 0, '✂️', { fontSize: '16px' }).setOrigin(0.5);
+    this.centerText = scene.add.text(0, 0, '✂️', { fontSize: '18px' }).setOrigin(0.5);
     this.container.add(this.centerText);
 
-    this.radius = 22;
-    this.thickness = 6;
+    this.radius = 24;
+    this.thickness = 7;
     this.progress = 0;
     this.progressTween = null;
   }
@@ -46,7 +48,7 @@ export class RadialGauge {
 
     // Soft drop shadow
     this.graphics.fillStyle(0x000000, 0.28);
-    this.graphics.fillCircle(0, 2, r + this.thickness / 2);
+    this.graphics.fillCircle(0, 3, r + this.thickness / 2);
 
     // Track ring
     this.graphics.lineStyle(this.thickness, 0x1e293b, 0.9);
@@ -115,7 +117,7 @@ export class RadialGauge {
 
 /**
  * Station 1: Sewing Table (T-Shirts)
- * Warm 3D wooden counter with bevels, fabric rolls, scissors, and neat stacks of clothes.
+ * 3D Isometric Caramel Wood Tailoring Station + Affordable Upgrade Red Arrow Badge
  */
 export class SewingStation {
   constructor(scene, parentContainer) {
@@ -130,106 +132,261 @@ export class SewingStation {
     this.container.setDepth(8);
     parentContainer.add(this.container);
 
-    this.drawTable();
+    this.draw3DCaramelTable();
     this.createLevelBadge();
+    this.createRedArrowBadge();
     this.setupInteraction();
 
+    // Event listeners
+    gameState.on('coinsChanged', () => this.updateRedBadgeVisibility());
     gameState.on('stationUpgraded', (data) => {
       if (data.station === 'sewing') {
         this.updateLevelBadge(data.level);
+        this.updateRedBadgeVisibility();
         this.playUpgradeEffect();
       }
     });
+    gameState.on('stageRenovated', () => {
+      this.updateLevelBadge(gameState.sewingStation.level);
+      this.updateRedBadgeVisibility();
+    });
   }
 
-  drawTable() {
+  /**
+   * Artistic Overhaul: 3D Isometric Polished Caramel Wood Tailoring Station
+   * Tabletop: Stylized white sewing machine with silver handwheel, golden scissors,
+   * colorful thread spool, and stack of folded pastel T-shirts.
+   */
+  draw3DCaramelTable() {
     const w = this.width;
     const h = this.height;
     const g = this.scene.add.graphics();
     this.container.add(g);
 
-    // 1. Soft 2.5D Translucent Dark Oval Drop Shadow directly under table
-    g.fillStyle(0x000000, 0.25);
-    g.fillEllipse(0, h / 2 + 6, w * 1.04, 26);
+    // 1. Soft 2.5D Translucent Dark Oval Ambient Drop Shadow
+    g.fillStyle(0x000000, 0.28);
+    g.fillEllipse(0, h / 2 + 8, w * 1.06, 26);
 
-    // 2. Warm Wooden Table Base with 3D Bevels
-    g.fillStyle(0x475569, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
+    // 2. 3D Caramel Wooden Table Body (Front depth & beveled bottom)
+    g.fillStyle(0x965018, 1.0); // Darker caramel underside bevel
+    g.fillRoundedRect(-w / 2, -h / 2 + 8, w, h - 2, 14);
+
+    g.fillStyle(0xc07028, 1.0); // Polished caramel wood front face
+    g.fillRoundedRect(-w / 2, -h / 2 + 4, w, h - 6, 14);
+
+    // Front wood grain & drawer detail
+    g.fillStyle(0xa85d1d, 1.0);
+    g.fillRoundedRect(-w / 2 + 20, 4, w - 40, h / 2 - 10, 6);
+    g.lineStyle(1.5, 0x824412, 0.8);
+    g.strokeRoundedRect(-w / 2 + 20, 4, w - 40, h / 2 - 10, 6);
+
+    // Brass drawer pull knob
+    g.fillStyle(0xf59e0b, 1.0);
+    g.fillCircle(0, h / 4 + 1, 4.5);
+    g.fillStyle(0xfef08a, 1.0);
+    g.fillCircle(-1, h / 4, 1.5);
+
+    // 3. Polished Honey Amber Tabletop Surface with Rounded Edges
+    g.fillStyle(0xdf8d3c, 1.0);
+    g.fillRoundedRect(-w / 2 - 2, -h / 2 - 4, w + 4, h * 0.56, 12);
+
+    // Top edge glossy highlight shine
+    g.fillStyle(0xffffff, 0.35);
+    g.fillRoundedRect(-w / 2 + 10, -h / 2 - 3, w - 20, 4, 2);
+
+    // 4. Stylized White Sewing Machine with Needle & Silver Handwheel (Right Side)
+    const smX = w / 2 - 40;
+    const smY = -14;
+
+    // Machine shadow
+    g.fillStyle(0x000000, 0.2);
+    g.fillRoundedRect(smX - 18, smY - 6, 36, 26, 4);
+
+    // White glossy body
+    g.fillStyle(0xffffff, 1.0);
+    g.fillRoundedRect(smX - 16, smY - 8, 32, 22, 5);
+
+    // Upper arm
+    g.fillStyle(0xf1f5f9, 1.0);
+    g.fillRect(smX - 14, smY - 18, 10, 12);
+    g.fillRect(smX - 14, smY - 20, 26, 7);
+
+    // Chrome Needle bar & Presser foot
+    g.fillStyle(0x94a3b8, 1.0);
+    g.fillRect(smX + 8, smY - 14, 2.5, 10);
     g.fillStyle(0x64748b, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, 12, { tl: 10, tr: 10, bl: 0, br: 0 });
+    g.fillRect(smX + 6, smY - 4, 6, 2);
 
-    // 3. Self-Healing Green Cutting Mat
-    const matW = w * 0.75;
-    const matH = h * 0.68;
-    g.fillStyle(0x10b981, 1.0);
-    g.fillRoundedRect(-matW / 2, -matH / 2 + 4, matW, matH, 6);
+    // Silver Handwheel on the right side
+    g.fillStyle(0xcfd8dc, 1.0);
+    g.fillCircle(smX + 16, smY - 14, 6);
+    g.fillStyle(0x94a3b8, 1.0);
+    g.fillCircle(smX + 16, smY - 14, 3);
 
-    // Grid lines on cutting mat
-    g.lineStyle(1, 0x34d399, 0.5);
-    for (let lx = -matW / 2 + 10; lx < matW / 2; lx += 15) {
-      g.lineBetween(lx, -matH / 2 + 6, lx, matH / 2 + 2);
-    }
-    for (let ly = -matH / 2 + 10; ly < matH / 2; ly += 14) {
-      g.lineBetween(-matW / 2 + 4, ly, matW / 2 - 4, ly);
-    }
-
-    // 4. Modern Sewing Machine (Right)
-    const smX = w / 2 - 42;
-    const smY = -6;
-    g.fillStyle(0xf8fafc, 1.0);
-    g.fillRoundedRect(smX - 16, smY - 10, 32, 22, 5);
-    g.fillStyle(0xe2e8f0, 1.0);
-    g.fillRect(smX - 14, smY - 18, 10, 10);
-    g.fillRect(smX - 14, smY - 20, 24, 6);
-    // Needle
-    g.fillStyle(0x1e293b, 1.0);
-    g.fillRect(smX + 6, smY - 14, 2, 9);
-    // Thread spool
+    // Gold spool pin & thread on top
     g.fillStyle(0xf59e0b, 1.0);
-    g.fillRect(smX - 10, smY - 25, 5, 6);
+    g.fillRect(smX - 10, smY - 26, 5, 7);
+    g.fillStyle(0xd97706, 1.0);
+    g.strokeRect(smX - 10, smY - 26, 5, 7);
 
-    // 5. Tailor Tools & Fabric Rolls (Left)
-    // Blue fabric roll
-    g.fillStyle(0x3b82f6, 1.0);
-    g.fillRoundedRect(-w / 2 + 14, -14, 12, 26, 3);
-    // Shears
-    g.lineStyle(2, 0x94a3b8, 1);
-    g.lineBetween(-8, -8, 6, 8);
-    g.lineBetween(-8, 8, 6, -8);
+    // 5. Golden Scissors Accessory (Center Left)
+    const scX = -8;
+    const scY = -12;
+    g.lineStyle(2.5, 0xf59e0b, 1.0); // Golden blades
+    g.lineBetween(scX - 8, scY - 6, scX + 8, scY + 6);
+    g.lineBetween(scX - 8, scY + 6, scX + 8, scY - 6);
+    // Gold finger rings
+    g.strokeCircle(scX - 10, scY - 7, 3.5);
+    g.strokeCircle(scX - 10, scY + 7, 3.5);
 
-    // 6. Neat Folded Stacks of Clothes (Center)
+    // 6. Colorful Spool of Thread (Left of scissors)
+    const spX = -w / 2 + 48;
+    const spY = -12;
+    g.fillStyle(0xf59e0b, 1.0); // Golden rims
+    g.fillCircle(spX, spY - 6, 5);
+    g.fillCircle(spX, spY + 6, 5);
+    // Vibrant Turquoise thread
+    g.fillStyle(0x06b6d4, 1.0);
+    g.fillRoundedRect(spX - 4, spY - 6, 8, 12, 2);
+
+    // 7. Stack of Folded Pastel T-Shirts (Far Left)
+    const stX = -w / 2 + 18;
+    const stY = -12;
+
+    // Pastel Mint T-Shirt (Bottom)
+    g.fillStyle(0xa7f3d0, 1.0);
+    g.fillRoundedRect(stX - 10, stY + 4, 20, 8, 2);
+    g.fillStyle(0x6ee7b7, 0.7);
+    g.fillRect(stX - 4, stY + 4, 8, 2);
+
+    // Pastel Peach T-Shirt (Middle)
+    g.fillStyle(0xfecdd3, 1.0);
+    g.fillRoundedRect(stX - 10, stY - 1, 20, 8, 2);
+    g.fillStyle(0xfda4af, 0.7);
+    g.fillRect(stX - 4, stY - 1, 8, 2);
+
+    // Pastel Sky Blue T-Shirt (Top)
+    g.fillStyle(0xbae6fd, 1.0);
+    g.fillRoundedRect(stX - 10, stY - 6, 20, 8, 2);
+    g.fillStyle(0x7dd3fc, 0.7);
+    g.fillRect(stX - 4, stY - 6, 8, 2);
+  }
+
+  /**
+   * Affordable Upgrade Red Arrow Badge (↑)
+   * Iconic bouncing red circle (radius 18px) with bold white up-arrow anchored at top-left.
+   * Visible ONLY when playerCoins >= sewingStation.nextCost.
+   */
+  createRedArrowBadge() {
+    const badgeX = -this.width / 2 + 4;
+    const badgeY = -this.height / 2 - 4;
+
+    this.redArrowBadge = this.scene.add.container(badgeX, badgeY);
+    this.redArrowBadge.setDepth(20);
+    this.container.add(this.redArrowBadge);
+
+    const g = this.scene.add.graphics();
+    // Ambient drop shadow
+    g.fillStyle(0x000000, 0.32);
+    g.fillCircle(1, 3, 19);
+
+    // 3D Bottom Bevel
+    g.fillStyle(0xb91c1c, 1.0);
+    g.fillCircle(0, 2, 18);
+
+    // Vibrant Red Face
     g.fillStyle(0xef4444, 1.0);
-    g.fillRoundedRect(-16, 8, 18, 7, 2);
-    g.fillStyle(0xf59e0b, 1.0);
-    g.fillRoundedRect(-16, 4, 18, 7, 2);
-    g.fillStyle(0x0ea5e9, 1.0);
-    g.fillRoundedRect(-16, 0, 18, 7, 2);
+    g.fillCircle(0, 0, 18);
+
+    // Top Gloss
+    g.fillStyle(0xffffff, 0.35);
+    g.fillCircle(0, -7, 7);
+    this.redArrowBadge.add(g);
+
+    // Bold White Up-Arrow
+    const arrow = this.scene.add.text(0, -1, '↑', {
+      fontFamily: FONT_FAMILY,
+      fontSize: '25px',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5);
+    this.redArrowBadge.add(arrow);
+
+    // Pulsing Scale Animation (scale tween 1.0 to 1.16)
+    this.badgePulseTween = this.scene.tweens.add({
+      targets: this.redArrowBadge,
+      scale: 1.16,
+      duration: 450,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Interactive hit area: clicking badge opens Station Upgrade Card
+    const hitArea = new Phaser.Geom.Circle(0, 0, 20);
+    this.redArrowBadge.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+    this.redArrowBadge.on('pointerup', (pointer, localX, localY, event) => {
+      if (event) event.stopPropagation();
+      this.scene.events.emit('openStationUpgrade', { station: 'sewing' });
+    });
+
+    this.updateRedBadgeVisibility();
+  }
+
+  updateRedBadgeVisibility() {
+    const canAfford = gameState.canUpgradeSewing();
+    this.redArrowBadge.setVisible(canAfford);
   }
 
   createLevelBadge() {
-    this.badgeContainer = this.scene.add.container(0, this.height / 2 + 14);
+    this.badgeContainer = this.scene.add.container(0, this.height / 2 + 16);
     this.container.add(this.badgeContainer);
 
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x000000, 0.28);
-    bg.fillRoundedRect(-36, -11, 72, 24, 8);
-    bg.fillStyle(0x22c55e, 1.0);
-    bg.fillRoundedRect(-38, -13, 76, 26, 8);
-    bg.lineStyle(1.5, 0xffffff, 0.95);
-    bg.strokeRoundedRect(-38, -13, 76, 26, 8);
-    this.badgeContainer.add(bg);
+    this.badgeBg = this.scene.add.graphics();
+    this.badgeContainer.add(this.badgeBg);
 
-    this.levelText = this.scene.add.text(0, 0, 'Lv. ' + gameState.sewingStation.level, {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '14px',
+    this.levelText = this.scene.add.text(0, 0, '', {
+      fontFamily: FONT_FAMILY,
+      fontSize: '15px',
       fontStyle: 'bold',
       color: '#ffffff'
     }).setOrigin(0.5);
     this.badgeContainer.add(this.levelText);
+
+    this.updateLevelBadge(gameState.sewingStation.level);
   }
 
   updateLevelBadge(level) {
-    this.levelText.setText('Lv. ' + level);
+    const isStage1 = gameState.stage === 1;
+    const isMax = isStage1 && level >= 25;
+
+    this.badgeBg.clear();
+    const w = isMax ? 110 : 96;
+    const h = 28;
+
+    this.badgeBg.fillStyle(0x000000, 0.28);
+    this.badgeBg.fillRoundedRect(-w / 2, -h / 2 + 2, w, h, 9);
+
+    if (isMax) {
+      // Gold MAX LEVEL pill
+      this.badgeBg.fillStyle(0xf59e0b, 1.0);
+      this.badgeBg.fillRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
+      this.badgeBg.lineStyle(1.5, 0xfef08a, 1.0);
+      this.badgeBg.strokeRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
+      this.levelText.setText('MAX LV. 25');
+    } else {
+      // Green Level Pill
+      this.badgeBg.fillStyle(0x22c55e, 1.0);
+      this.badgeBg.fillRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
+      this.badgeBg.lineStyle(1.5, 0xffffff, 0.95);
+      this.badgeBg.strokeRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
+
+      if (isStage1) {
+        this.levelText.setText(`Lv. ${level} / 25`);
+      } else {
+        this.levelText.setText(`Lv. ${level}`);
+      }
+    }
   }
 
   setupInteraction() {
@@ -245,7 +402,6 @@ export class SewingStation {
       });
     });
 
-    // ONLY clicking directly on station in the world opens Station Modal
     this.container.on('pointerup', () => {
       this.scene.events.emit('openStationUpgrade', { station: 'sewing' });
     });
@@ -265,7 +421,7 @@ export class SewingStation {
         this.x + Phaser.Math.Between(-35, 35),
         this.y + Phaser.Math.Between(-20, 10),
         '✨',
-        { fontSize: '18px' }
+        { fontSize: '20px' }
       ).setOrigin(0.5).setDepth(25);
 
       this.scene.tweens.add({
@@ -282,7 +438,6 @@ export class SewingStation {
 
 /**
  * Station 2: Jeans Table (Dotted Unlockable Station in Stage 2)
- * Appears as a pulsing dotted outline box on floor until unlocked for 50 coins.
  */
 export class JeansStation {
   constructor(scene, parentContainer) {
@@ -299,7 +454,6 @@ export class JeansStation {
 
     this.render();
 
-    // Listen for stage changes and unlocks
     gameState.on('stageRenovated', () => this.render());
     gameState.on('stationUnlocked', (data) => {
       if (data.station === 'jeans') {
@@ -312,7 +466,6 @@ export class JeansStation {
   render() {
     this.container.removeAll(true);
 
-    // In Stage 1: hidden completely
     if (gameState.stage < 2) {
       this.container.setVisible(false);
       return;
@@ -331,44 +484,38 @@ export class JeansStation {
     const w = this.width;
     const h = this.height;
 
-    // Soft footprint shadow
     const shadow = this.scene.add.graphics();
     shadow.fillStyle(0x000000, 0.15);
     shadow.fillRoundedRect(-w / 2 - 2, -h / 2 + 4, w + 4, h + 4, 12);
     this.container.add(shadow);
 
-    // Pulsing dotted box
     const box = this.scene.add.graphics();
     box.fillStyle(0x38bdf8, 0.08);
     box.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
-
-    // Dotted dashed line perimeter
     box.lineStyle(2.5, 0x0284c7, 0.85);
     this.strokeDottedRect(box, -w / 2, -h / 2, w, h, 8);
     this.container.add(box);
 
-    // Center Product Icon & Unlock Price Pill
-    const icon = this.scene.add.text(0, -14, '👖', { fontSize: '28px' }).setOrigin(0.5);
+    const icon = this.scene.add.text(0, -14, '👖', { fontSize: '32px' }).setOrigin(0.5);
     this.container.add(icon);
 
     const badge = this.scene.add.container(0, 18);
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x0f172a, 0.85);
-    bg.fillRoundedRect(-44, -13, 88, 26, 8);
+    bg.fillRoundedRect(-46, -13, 92, 26, 8);
     bg.lineStyle(1.5, 0x38bdf8, 1);
-    bg.strokeRoundedRect(-44, -13, 88, 26, 8);
+    bg.strokeRoundedRect(-46, -13, 92, 26, 8);
     badge.add(bg);
 
     const txt = this.scene.add.text(0, 0, '🔒 50 🪙', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '13px',
+      fontFamily: FONT_FAMILY,
+      fontSize: '14px',
       fontStyle: 'bold',
       color: '#fef08a'
     }).setOrigin(0.5);
     badge.add(txt);
     this.container.add(badge);
 
-    // Pulsing breathing animation
     this.pulseTween = this.scene.tweens.add({
       targets: this.container,
       alpha: { from: 0.85, to: 1.0 },
@@ -379,7 +526,6 @@ export class JeansStation {
       ease: 'Sine.easeInOut'
     });
 
-    // Click handler to open unlock card
     const hitArea = new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h);
     this.container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
     this.container.on('pointerup', () => {
@@ -406,36 +552,27 @@ export class JeansStation {
     const g = this.scene.add.graphics();
     this.container.add(g);
 
-    // 1. Soft 2.5D Drop Shadow directly under table
+    // 1. Soft 2.5D Drop Shadow
     g.fillStyle(0x000000, 0.25);
     g.fillEllipse(0, h / 2 + 6, w * 1.04, 26);
 
-    // 2. Heavy Dark Indigo Wooden Table Base
+    // 2. Heavy Dark Indigo Table Base
     g.fillStyle(0x1e3a8a, 1.0);
     g.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
     g.fillStyle(0x2563eb, 1.0);
     g.fillRoundedRect(-w / 2, -h / 2, w, 12, { tl: 10, tr: 10, bl: 0, br: 0 });
 
-    // 3. Denim Work Mat
+    // 3. Denim Work Mat with gold stitching
     const matW = w * 0.75;
     const matH = h * 0.68;
     g.fillStyle(0x1d4ed8, 1.0);
     g.fillRoundedRect(-matW / 2, -matH / 2 + 4, matW, matH, 6);
-
-    // Gold denim stitching lines
     g.lineStyle(1.5, 0xf59e0b, 0.8);
     g.strokeRoundedRect(-matW / 2 + 2, -matH / 2 + 6, matW - 4, matH - 4, 4);
 
-    // 4. Heavy Denim Cutting Tools & Brass Rivets
-    g.fillStyle(0xfbbf24, 1.0);
-    g.fillCircle(w / 2 - 20, -10, 4);
-    g.fillCircle(w / 2 - 20, 10, 4);
-
-    // Denim roll (Indigo)
+    // Denim roll & folded jeans stack
     g.fillStyle(0x172554, 1.0);
     g.fillRoundedRect(-w / 2 + 14, -14, 14, 26, 3);
-
-    // Folded stack of Jeans (Blue with gold stitch)
     g.fillStyle(0x2563eb, 1.0);
     g.fillRoundedRect(-14, 4, 22, 10, 2);
     g.fillStyle(0x1d4ed8, 1.0);
@@ -455,7 +592,7 @@ export class JeansStation {
     badge.add(bg);
 
     const txt = this.scene.add.text(0, 0, 'Lv. 1', {
-      fontFamily: 'Arial, sans-serif',
+      fontFamily: FONT_FAMILY,
       fontSize: '14px',
       fontStyle: 'bold',
       color: '#ffffff'
@@ -477,7 +614,6 @@ export class JeansStation {
       ease: 'Back.easeOut'
     });
 
-    // White smoke puff & sparkles
     for (let i = 0; i < 10; i++) {
       const puff = this.scene.add.graphics();
       puff.setDepth(25);
@@ -518,7 +654,7 @@ export class JeansStation {
 }
 
 /**
- * Station 3: Hats Rack (Dotted Unlockable Station in Stage 2 after Jeans Station)
+ * Station 3: Hats Rack (Dotted Unlockable Station in Stage 2)
  */
 export class HatsStation {
   constructor(scene, parentContainer) {
@@ -542,7 +678,6 @@ export class HatsStation {
   render() {
     this.container.removeAll(true);
 
-    // Only visible in Stage 2 AND after Jeans station is unlocked!
     if (gameState.stage < 2 || !gameState.jeansStation.unlocked) {
       this.container.setVisible(false);
       return;
@@ -571,7 +706,6 @@ export class HatsStation {
     box.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
     box.lineStyle(2.5, 0x9333ea, 0.85);
 
-    // Dotted outline
     const dash = 6;
     const drawDashLine = (x1, y1, x2, y2) => {
       const dist = Phaser.Math.Distance.Between(x1, y1, x2, y2);
@@ -591,20 +725,20 @@ export class HatsStation {
     drawDashLine(-w / 2, h / 2, -w / 2, -h / 2);
     this.container.add(box);
 
-    const icon = this.scene.add.text(0, -14, '🧢', { fontSize: '28px' }).setOrigin(0.5);
+    const icon = this.scene.add.text(0, -14, '🧢', { fontSize: '32px' }).setOrigin(0.5);
     this.container.add(icon);
 
     const badge = this.scene.add.container(0, 18);
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x0f172a, 0.85);
-    bg.fillRoundedRect(-48, -13, 96, 26, 8);
+    bg.fillRoundedRect(-50, -13, 100, 26, 8);
     bg.lineStyle(1.5, 0xa855f7, 1);
-    bg.strokeRoundedRect(-48, -13, 96, 26, 8);
+    bg.strokeRoundedRect(-50, -13, 100, 26, 8);
     badge.add(bg);
 
     const txt = this.scene.add.text(0, 0, '🔒 100 🪙', {
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '13px',
+      fontFamily: FONT_FAMILY,
+      fontSize: '14px',
       fontStyle: 'bold',
       color: '#fef08a'
     }).setOrigin(0.5);
@@ -647,18 +781,14 @@ export class HatsStation {
     const g = this.scene.add.graphics();
     this.container.add(g);
 
-    // 1. Soft 2.5D Drop Shadow directly under rack
     g.fillStyle(0x000000, 0.25);
     g.fillEllipse(0, h / 2 + 4, w * 0.95, 24);
 
-    // 2. Polished Mahogany Wooden Stand Base
     g.fillStyle(0x78350f, 1.0);
     g.fillRoundedRect(-w / 2 + 10, -h / 2, w - 20, h, 10);
     g.fillStyle(0x92400e, 1.0);
     g.fillRoundedRect(-w / 2 + 10, -h / 2, w - 20, 12, { tl: 10, tr: 10, bl: 0, br: 0 });
 
-    // 3. Display Pegs with Hats
-    // Fedoras & Caps displayed on brass pegs
     const hats = [
       { x: -w / 2 + 40, icon: '🧢' },
       { x: 0, icon: '🎩' },
@@ -668,11 +798,10 @@ export class HatsStation {
     hats.forEach(item => {
       g.fillStyle(0xd97706, 1.0);
       g.fillCircle(item.x, 2, 8);
-      const hatTxt = this.scene.add.text(item.x, -6, item.icon, { fontSize: '22px' }).setOrigin(0.5);
+      const hatTxt = this.scene.add.text(item.x, -6, item.icon, { fontSize: '24px' }).setOrigin(0.5);
       this.container.add(hatTxt);
     });
 
-    // Level Pill
     const badge = this.scene.add.container(0, h / 2 + 14);
     const bg = this.scene.add.graphics();
     bg.fillStyle(0x000000, 0.28);
@@ -684,7 +813,7 @@ export class HatsStation {
     badge.add(bg);
 
     const txt = this.scene.add.text(0, 0, 'Lv. 1', {
-      fontFamily: 'Arial, sans-serif',
+      fontFamily: FONT_FAMILY,
       fontSize: '14px',
       fontStyle: 'bold',
       color: '#ffffff'
@@ -699,7 +828,6 @@ export class HatsStation {
 
 /**
  * Counter Station (Top Checkout & Service Desk)
- * Materials: Warm Oak with Rounded Ends, 2.5D Drop Shadows, POS Tablets, Vitrine Display
  */
 export class CounterStation {
   constructor(scene, parentContainer) {
@@ -723,32 +851,26 @@ export class CounterStation {
     const g = this.scene.add.graphics();
     this.container.add(g);
 
-    // 1. Soft 2.5D Translucent Dark Oval Drop Shadow directly under counter
     g.fillStyle(0x000000, 0.25);
     g.fillEllipse(0, h / 2 + 10, w * 1.04, 28);
 
-    // 2. Warm Oak Counter Body with ROUNDED ENDS (Pill / Capsule profile)
     g.fillStyle(GAME_CONFIG.colors.counterBevel, 1.0);
     g.fillRoundedRect(-w / 2, -h / 2 + 6, w, h - 2, 24);
 
     g.fillStyle(GAME_CONFIG.colors.counterWood, 1.0);
     g.fillRoundedRect(-w / 2, -h / 2, w, h - 4, 24);
 
-    // Fluted decorative vertical wood slats
     g.fillStyle(GAME_CONFIG.colors.counterTrim, 0.65);
     for (let lx = -w / 2 + 25; lx < w / 2 - 20; lx += 18) {
       g.fillRect(lx, -h / 2 + 6, 6, h - 16);
     }
 
-    // 3. Polished Honey Oak Top Surface with Rounded Ends
     g.fillStyle(GAME_CONFIG.colors.counterTop, 1.0);
     g.fillRoundedRect(-w / 2 - 3, -h / 2 - 6, w + 6, 22, 11);
 
-    // Top edge gloss highlight
     g.fillStyle(0xffffff, 0.28);
     g.fillRoundedRect(-w / 2 + 10, -h / 2 - 5, w - 20, 3, 2);
 
-    // 4. Center Vitrine Display Case
     const caseW = 76;
     const caseH = 28;
     g.fillStyle(0x0f172a, 0.85);
@@ -756,7 +878,6 @@ export class CounterStation {
     g.fillStyle(0x38bdf8, 0.25);
     g.fillRoundedRect(-caseW / 2 + 2, 4, caseW - 4, caseH - 4, 3);
 
-    // Samples inside vitrine
     g.fillStyle(0xef4444, 1.0);
     g.fillRoundedRect(-caseW / 2 + 8, 8, 14, 11, 2);
     g.fillStyle(0x3b82f6, 1.0);
@@ -764,7 +885,6 @@ export class CounterStation {
     g.fillStyle(0xf59e0b, 1.0);
     g.fillRoundedRect(-caseW / 2 + 48, 8, 14, 11, 2);
 
-    // 5. Checkout POS Registers at Slot 1 and Slot 2
     this.drawPOSRegister(g, -60, -h / 2 - 2);
     this.drawPOSRegister(g, 60, -h / 2 - 2);
   }
@@ -807,7 +927,11 @@ export function spawnFloatingCoins(scene, startX, startY, amount, targetX = 360,
       cg.lineStyle(1.5, 0xd97706, 1);
       cg.strokeCircle(0, 0, 7);
 
-      const star = scene.add.text(0, 0, '★', { fontSize: '10px', color: '#b45309' }).setOrigin(0.5);
+      const star = scene.add.text(0, 0, '★', {
+        fontFamily: FONT_FAMILY,
+        fontSize: '11px',
+        color: '#b45309'
+      }).setOrigin(0.5);
       coin.add(cg);
       coin.add(star);
 

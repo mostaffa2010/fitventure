@@ -8,7 +8,7 @@
  * 5. Self-Clearing Global Upgrades Menu (12 progressive upgrades).
  */
 
-import { GAME_CONFIG, gameState, phaserConfig } from './config.js';
+import { GAME_CONFIG, gameState, phaserConfig, loadGoogleFont } from './config.js';
 import { EnvironmentManager } from './environment.js';
 import { CharacterManager } from './characters.js';
 import { SewingStation, JeansStation, HatsStation, CounterStation, spawnFloatingCoins } from './stations.js';
@@ -29,6 +29,7 @@ export class FitventureScene extends (typeof Phaser !== 'undefined' ? Phaser.Sce
   }
 
   create() {
+    loadGoogleFont();
     // 1. Root Containers separating World (Zoomed 1.45x) and UI (1.0x screen overlay)
     this.worldContainer = this.add.container(0, 0);
     this.uiContainer = this.add.container(0, 0);
