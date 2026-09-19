@@ -1,15 +1,35 @@
 /**
- * Fitventure - 3D Characters & AI Manager
+ * Fitventure - 3D Characters & AI Service Loop
+ * Perspective: Low-Poly 3D Isometric Top-Down
  * Tech Stack: Three.js r128
  * Features:
- * 1. 3D Low-poly characters (Sphere head, cylinder body, worker caps).
- * 2. Natural 3D waddle animation (Z-tilt and vertical bounce while moving).
- * 3. Customer queueing, ordering logic, and worker delivery cycle.
- * 4. Multi-product orders: T-Shirts, Jeans, Hats.
+ * 1. Reliable customer spawner: Spawns 1st customer within 1s, subsequent every 3.5s.
+ * 2. Shoppers walk down from crosswalk zebra stripes to Slot 1 / Slot 2 at counter.
+ * 3. 3D Order speech bubble with T-shirt icon (👕) pops up with juicy bounce.
+ * 4. Master Tailor worker pathfinds to sewing table, crafts with 3D radial progress ring, and delivers.
+ * 5. Customer celebration hop, 3D floating coin payment, and graceful slot succession.
+ * 6. Natural 3D waddle animation (Z-tilt and vertical bounce during locomotion).
  */
 
 import { GAME_CONFIG, gameState } from './config.js';
 import { RadialProgressRing } from './stations.js';
+
+/**
+ * Helper to draw a rounded rectangle on a 2D canvas
+ */
+function drawRoundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
 
 /**
  * Creates a low-poly 3D character mesh group
@@ -51,7 +71,7 @@ export function create3DCharacterMesh({ isWorker = false, role = 'shopper', colo
     else if (role === 'lucas') shirtColor = 0x581c87;
     else if (role === 'emma') shirtColor = 0xbe185d;
   } else {
-    shirtColor = colorScheme ? colorScheme.shirt : 0x3b82f6;
+    shirtColor = (colorScheme && colorScheme.shirt) ? colorScheme.shirt : 0xef4444;
   }
 
   const torsoGeo = new THREE.CylinderGeometry(0.48, 0.54, 1.0, 16);
@@ -71,7 +91,7 @@ export function create3DCharacterMesh({ isWorker = false, role = 'shopper', colo
     apron.castShadow = true;
     visual.add(apron);
 
-    // Measuring Tape
+    // Measuring Tape over neck
     const tapeGeo = new THREE.BoxGeometry(0.5, 0.1, 0.14);
     const tapeMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
     const tape = new THREE.Mesh(tapeGeo, tapeMat);
@@ -134,7 +154,7 @@ export function create3DCharacterMesh({ isWorker = false, role = 'shopper', colo
     visual.add(visor);
   } else {
     // Shopper Hair
-    const hairColor = colorScheme ? colorScheme.hair : 0x1e293b;
+    const hairColor = (colorScheme && colorScheme.hair) ? colorScheme.hair : 0x1e293b;
     const hairGeo = new THREE.SphereGeometry(0.51, 14, 14, 0, Math.PI * 2, 0, Math.PI * 0.45);
     const hairMat = new THREE.MeshLambertMaterial({ color: hairColor });
     const hair = new THREE.Mesh(hairGeo, hairMat);
@@ -150,8 +170,10 @@ export function create3DCharacterMesh({ isWorker = false, role = 'shopper', colo
  * Manages 3D path movement, natural waddle animation, and crafting loop.
  */
 export class TailorWorker {
-  constructor(scene, parentGroup, stationsMap, counterStation, options = {}) {
-    this.scene = scene;
+  constructor(app, parentGroup, stationsMap, counterStation, options = {}) {
+    this.app = app;
+    this.scene = app.scene;
+    this.events = app.events;
     this.stationsMap = stationsMap;
     this.counterStation = counterStation;
 
@@ -167,8 +189,8 @@ export class TailorWorker {
     this.mesh.position.set(this.homeX, 0, this.homeZ);
     parentGroup.add(this.mesh);
 
-    // Radial Progress Ring attached to world
-    this.radialRing = new RadialProgressRing(scene, parentGroup);
+    // 3D Radial Progress Ring attached to world
+    this.radialRing = new RadialProgressRing(this.scene, parentGroup);
 
     // Carried 3D garment mesh in hands
     this.createCarriedGarment();
@@ -223,10 +245,11 @@ export class TailorWorker {
     this.isWalking = true;
     this.onMoveComplete = onComplete;
 
-    // Rotate worker towards destination
     const dx = x - this.startX;
     const dz = z - this.startZ;
-    this.mesh.rotation.y = Math.atan2(dx, dz);
+    if (Math.hypot(dx, dz) > 0.05) {
+      this.mesh.rotation.y = Math.atan2(dx, dz);
+    }
   }
 
   assignOrder(customer) {
@@ -309,7 +332,7 @@ export class TailorWorker {
     setTimeout(() => {
       this.activeCustomer = null;
       this.state = 'IDLE';
-    }, 200);
+    }, 180);
   }
 
   update(delta) {
@@ -321,7 +344,7 @@ export class TailorWorker {
       this.mesh.position.x = this.startX + (this.targetX - this.startX) * t;
       this.mesh.position.z = this.startZ + (this.targetZ - this.startZ) * t;
 
-      // 3D Natural Waddle: Z-tilt and vertical bounce
+      // Natural 3D Waddle: Z-tilt and vertical bounce
       this.waddleTime += delta * 14 * gameState.getWorkerSpeedMultiplier();
       this.mesh.visual.rotation.z = Math.sin(this.waddleTime) * 0.13;
       this.mesh.visual.position.y = Math.abs(Math.sin(this.waddleTime)) * 0.2;
@@ -333,7 +356,6 @@ export class TailorWorker {
         if (this.onMoveComplete) this.onMoveComplete();
       }
     } else {
-      // Idle Breathing
       this.mesh.visual.rotation.z = 0;
       this.mesh.visual.position.y = 0;
     }
@@ -348,8 +370,10 @@ export class TailorWorker {
  * 3D Shopper (Customer) Class
  */
 export class Shopper {
-  constructor(scene, parentGroup, shopperId, colorScheme) {
-    this.scene = scene;
+  constructor(app, parentGroup, shopperId, colorScheme) {
+    this.app = app;
+    this.scene = app.scene;
+    this.events = app.events;
     this.id = shopperId;
     this.active = true;
     this.counterSlot = null;
@@ -358,18 +382,21 @@ export class Shopper {
     this.orderedProduct = this.pickRandomProduct();
 
     this.mesh = create3DCharacterMesh({ isWorker: false, colorScheme });
-    this.mesh.position.set(0, 0, -14.0);
+    // Spawn at crosswalk zebra lines (Z = -13.5)
+    this.mesh.position.set((Math.random() - 0.5) * 1.0, 0, -13.5);
     parentGroup.add(this.mesh);
 
-    // Floating HTML Speech Bubble
-    this.createOrderBubble();
+    // 3D Order Speech Bubble (Billboard Sprite with juicy pop)
+    this.create3DOrderBubble();
+    // HTML Speech Bubble fallback
+    this.createHTMLOrderBubble();
 
     this.waddleTime = 0;
     this.isWalking = false;
-    this.startX = 0;
-    this.startZ = -14.0;
-    this.targetX = 0;
-    this.targetZ = -14.0;
+    this.startX = this.mesh.position.x;
+    this.startZ = this.mesh.position.z;
+    this.targetX = this.mesh.position.x;
+    this.targetZ = this.mesh.position.z;
     this.moveProgress = 1.0;
     this.moveDuration = 0.5;
     this.onMoveComplete = null;
@@ -384,7 +411,49 @@ export class Shopper {
     return p[Math.floor(Math.random() * p.length)];
   }
 
-  createOrderBubble() {
+  /**
+   * 3D Billboard Speech Bubble with T-shirt icon (👕)
+   */
+  create3DOrderBubble() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    // Rounded speech bubble background
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 5;
+    drawRoundRect(ctx, 12, 10, 104, 76, 18);
+    ctx.fill();
+    ctx.stroke();
+
+    // Triangle tail pointing down to customer
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(52, 85);
+    ctx.lineTo(64, 106);
+    ctx.lineTo(76, 85);
+    ctx.closePath();
+    ctx.fill();
+
+    // Icon (👕, 👖, 🧢)
+    const icon = this.orderedProduct === 'jeans' ? '👖' : (this.orderedProduct === 'hat' ? '🧢' : '👕');
+    ctx.font = '52px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icon, 64, 48);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+    this.bubbleSprite = new THREE.Sprite(spriteMat);
+    this.bubbleSprite.position.set(0, 2.7, 0);
+    this.bubbleSprite.scale.set(1.5, 1.5, 1.5);
+    this.bubbleSprite.visible = false;
+    this.mesh.add(this.bubbleSprite);
+  }
+
+  createHTMLOrderBubble() {
     this.bubbleEl = document.createElement('div');
     this.bubbleEl.className = 'shopper-speech-bubble';
     const icon = this.orderedProduct === 'jeans' ? '👖' : (this.orderedProduct === 'hat' ? '🧢' : '👕');
@@ -395,10 +464,36 @@ export class Shopper {
     if (uiContainer) uiContainer.appendChild(this.bubbleEl);
   }
 
+  showOrderBubble() {
+    if (this.bubbleSprite) {
+      this.bubbleSprite.visible = true;
+      // Juicy Pop Animation
+      this.bubbleSprite.scale.set(0.2, 0.2, 0.2);
+      let t = 0;
+      const popAnim = () => {
+        t += 0.18;
+        if (t < 1.0) {
+          const s = 0.2 + (1.5 - 0.2) * Math.sin(t * Math.PI * 0.5) * 1.15;
+          this.bubbleSprite.scale.set(s, s, s);
+          requestAnimationFrame(popAnim);
+        } else {
+          this.bubbleSprite.scale.set(1.5, 1.5, 1.5);
+        }
+      };
+      popAnim();
+    }
+    if (this.bubbleEl) this.bubbleEl.style.display = 'flex';
+  }
+
+  hideOrderBubble() {
+    if (this.bubbleSprite) this.bubbleSprite.visible = false;
+    if (this.bubbleEl) this.bubbleEl.style.display = 'none';
+  }
+
   updateBubblePosition(camera, width, height) {
     if (!this.bubbleEl || this.bubbleEl.style.display === 'none' || !this.mesh) return;
 
-    const pos = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 2.4, this.mesh.position.z);
+    const pos = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 2.5, this.mesh.position.z);
     pos.project(camera);
 
     const screenX = ((pos.x + 1) / 2) * width;
@@ -408,27 +503,21 @@ export class Shopper {
     this.bubbleEl.style.top = `${screenY}px`;
   }
 
-  showOrderBubble() {
-    if (this.bubbleEl) this.bubbleEl.style.display = 'flex';
-  }
-
-  hideOrderBubble() {
-    if (this.bubbleEl) this.bubbleEl.style.display = 'none';
-  }
-
   moveTo(x, z, duration, onComplete) {
     this.startX = this.mesh.position.x;
     this.startZ = this.mesh.position.z;
     this.targetX = x;
     this.targetZ = z;
-    this.moveDuration = duration;
+    this.moveDuration = Math.max(0.3, duration);
     this.moveProgress = 0;
     this.isWalking = true;
     this.onMoveComplete = onComplete;
 
     const dx = x - this.startX;
     const dz = z - this.startZ;
-    this.mesh.rotation.y = Math.atan2(dx, dz);
+    if (Math.hypot(dx, dz) > 0.05) {
+      this.mesh.rotation.y = Math.atan2(dx, dz);
+    }
   }
 
   receiveOrder(product) {
@@ -448,27 +537,29 @@ export class Shopper {
     else if (product === 'hat') profit = gameState.getHatsProfit();
     else profit = gameState.getSewingProfit();
 
-    this.scene.events.emit('customerPaid', {
+    this.events.emit('customerPaid', {
       x: this.mesh.position.x,
       y: this.mesh.position.y,
       z: this.mesh.position.z,
       amount: profit
     });
 
-    this.scene.events.emit('shopperVacatingSlot', {
+    this.events.emit('shopperVacatingSlot', {
       shopper: this,
       slot: this.counterSlot
     });
     this.counterSlot = null;
 
-    // Walk off-screen right
-    this.moveTo(18, this.mesh.position.z, 1.4, () => {
+    // Walk off-screen to the right (X: 18)
+    this.moveTo(18, this.mesh.position.z, 1.8, () => {
       this.active = false;
       if (this.bubbleEl && this.bubbleEl.parentNode) {
         this.bubbleEl.parentNode.removeChild(this.bubbleEl);
       }
-      this.mesh.parent.remove(this.mesh);
-      this.scene.events.emit('shopperExited', this);
+      if (this.mesh.parent) {
+        this.mesh.parent.remove(this.mesh);
+      }
+      this.events.emit('shopperExited', this);
     });
   }
 
@@ -498,14 +589,16 @@ export class Shopper {
  * 3D Character & Queue Manager
  */
 export class CharacterManager {
-  constructor(scene, parentGroup, stationsMap, counterStation) {
-    this.scene = scene;
+  constructor(app, parentGroup, stationsMap, counterStation) {
+    this.app = app;
+    this.scene = app.scene;
+    this.events = app.events;
     this.group = parentGroup;
     this.stationsMap = stationsMap;
     this.counterStation = counterStation;
 
-    // Master Tailor
-    this.tailor = new TailorWorker(scene, parentGroup, stationsMap, counterStation, {
+    // Master Tailor Worker
+    this.tailor = new TailorWorker(app, parentGroup, stationsMap, counterStation, {
       id: 'tailor',
       name: 'Master Tailor',
       role: 'tailor',
@@ -523,12 +616,14 @@ export class CharacterManager {
     this.waitingQueue = [];
     this.nextShopperId = 1;
 
-    this.spawnTimer = 0;
-    this.spawnInterval = 2.8;
+    // Spawner Configuration:
+    // First shopper spawns within 1 second of loading, subsequent every 3.5 seconds
+    this.spawnInterval = 3.5;
+    this.spawnTimer = 2.7; // Reaches 3.5s in ~0.8s on the animate loop!
 
     // Event listeners
-    scene.events.on('shopperVacatingSlot', (data) => this.handleSlotVacated(data.shopper, data.slot));
-    scene.events.on('shopperExited', (shopper) => this.handleSlotVacated(shopper, null));
+    this.events.on('shopperVacatingSlot', (data) => this.handleSlotVacated(data.shopper, data.slot));
+    this.events.on('shopperExited', (shopper) => this.handleSlotVacated(shopper, null));
 
     gameState.on('upgradePurchased', (data) => {
       if (data.id === 'hire_raymond') this.spawnRaymond();
@@ -536,14 +631,17 @@ export class CharacterManager {
       else if (data.id === 'hire_cashier_emma') this.spawnEmma();
     });
 
-    // Initial spawns
-    setTimeout(() => this.trySpawnShopper(), 400);
-    setTimeout(() => this.trySpawnShopper(), 1200);
+    // Safeguard spawn: guarantee first shopper within 1s even if browser timer delays
+    setTimeout(() => {
+      if (this.shoppers.length === 0) {
+        this.trySpawnShopper();
+      }
+    }, 800);
   }
 
   spawnRaymond() {
     if (this.workers.some(w => w.id === 'raymond')) return;
-    const raymond = new TailorWorker(this.scene, this.group, this.stationsMap, this.counterStation, {
+    const raymond = new TailorWorker(this.app, this.group, this.stationsMap, this.counterStation, {
       id: 'raymond',
       name: 'Raymond',
       role: 'raymond',
@@ -555,7 +653,7 @@ export class CharacterManager {
 
   spawnLucas() {
     if (this.workers.some(w => w.id === 'lucas')) return;
-    const lucas = new TailorWorker(this.scene, this.group, this.stationsMap, this.counterStation, {
+    const lucas = new TailorWorker(this.app, this.group, this.stationsMap, this.counterStation, {
       id: 'lucas',
       name: 'Master Lucas',
       role: 'lucas',
@@ -575,18 +673,28 @@ export class CharacterManager {
 
   trySpawnShopper() {
     const maxWaiting = gameState.getMaxQueueCapacity();
-    const totalShoppers = this.counterSlots.filter(s => s.customer !== null).length + this.waitingQueue.length;
+    const activeCounterCount = this.counterSlots.filter(s => s.customer !== null).length;
+    const totalShoppers = activeCounterCount + this.waitingQueue.length;
     if (totalShoppers >= this.counterSlots.length + maxWaiting) return;
 
-    const palette = GAME_CONFIG.colors.shopperPalette[Math.floor(Math.random() * GAME_CONFIG.colors.shopperPalette.length)];
-    const shopper = new Shopper(this.scene, this.group, this.nextShopperId++, palette);
+    const paletteList = GAME_CONFIG.colors.shopperPalette || [
+      { shirt: 0xef4444, hair: 0x1e293b },
+      { shirt: 0x3b82f6, hair: 0x78350f },
+      { shirt: 0x10b981, hair: 0xd97706 }
+    ];
+    const palette = paletteList[Math.floor(Math.random() * paletteList.length)];
+
+    const shopper = new Shopper(this.app, this.group, this.nextShopperId++, palette);
     this.shoppers.push(shopper);
 
     const freeSlot = this.counterSlots.find(s => s.customer === null);
     if (freeSlot) {
       freeSlot.customer = shopper;
       shopper.counterSlot = freeSlot;
-      shopper.moveTo(freeSlot.x, freeSlot.z, 1.1, () => {
+      // Walk down from crosswalk to the slot
+      shopper.moveTo(freeSlot.x, freeSlot.z, 2.0, () => {
+        // Face the boutique counter (facing +Z)
+        shopper.mesh.rotation.y = 0;
         shopper.showOrderBubble();
         this.checkCounterService();
       });
@@ -594,7 +702,9 @@ export class CharacterManager {
       const waitIdx = this.waitingQueue.length;
       const waitPos = GAME_CONFIG.layout.waitingQueue[waitIdx];
       this.waitingQueue.push(shopper);
-      shopper.moveTo(waitPos.x, waitPos.z, 1.1);
+      shopper.moveTo(waitPos.x, waitPos.z, 2.0, () => {
+        shopper.mesh.rotation.y = 0;
+      });
     }
   }
 
@@ -610,7 +720,8 @@ export class CharacterManager {
         const next = this.waitingQueue.shift();
         cs.customer = next;
         next.counterSlot = cs;
-        next.moveTo(cs.x, cs.z, 0.65, () => {
+        next.moveTo(cs.x, cs.z, 0.8, () => {
+          next.mesh.rotation.y = 0;
           next.showOrderBubble();
           this.checkCounterService();
         });
@@ -620,7 +731,9 @@ export class CharacterManager {
     for (let i = 0; i < this.waitingQueue.length; i++) {
       const queued = this.waitingQueue[i];
       const targetPos = GAME_CONFIG.layout.waitingQueue[i];
-      queued.moveTo(targetPos.x, targetPos.z, 0.45);
+      queued.moveTo(targetPos.x, targetPos.z, 0.5, () => {
+        queued.mesh.rotation.y = 0;
+      });
     }
 
     this.checkCounterService();
@@ -643,17 +756,17 @@ export class CharacterManager {
   }
 
   update(delta, camera, width, height) {
-    // Spawner
+    // Spawner timer tick
     this.spawnTimer += delta;
     if (this.spawnTimer >= this.spawnInterval) {
       this.spawnTimer = 0;
       this.trySpawnShopper();
     }
 
-    // Workers
+    // Workers update
     this.workers.forEach(w => w.update(delta));
 
-    // Shoppers
+    // Shoppers update
     for (let i = this.shoppers.length - 1; i >= 0; i--) {
       const s = this.shoppers[i];
       s.update(delta);
@@ -663,7 +776,7 @@ export class CharacterManager {
       }
     }
 
-    // Check service
+    // Immediate counter service check
     if (this.workers.some(w => w.state === 'IDLE')) {
       this.checkCounterService();
     }

@@ -466,6 +466,22 @@ export class UIManager {
         this.coinPill.style.transform = 'translateX(-50%) scale(1.0)';
       }, 100);
     }
+
+    if (this.stationModal && this.stationModal.style.display !== 'none') {
+      this.refreshStationModal();
+    }
+
+    if (this.upgradesModal && this.upgradesModal.style.display !== 'none') {
+      const available = gameState.getAvailableUpgrades();
+      available.forEach(upg => {
+        const btn = document.getElementById("buy-btn-" + upg.id);
+        if (btn) {
+          const canAfford = gameState.canBuyUpgrade(upg.id);
+          if (canAfford) btn.classList.remove('disabled');
+          else btn.classList.add('disabled');
+        }
+      });
+    }
   }
 
   buildBottomDock() {

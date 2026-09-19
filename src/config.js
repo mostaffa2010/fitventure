@@ -5,36 +5,36 @@
  */
 
 export const GAME_CONFIG = {
-  // 3D Orthographic Camera Settings
+  // 3D Orthographic Camera Settings (Eatventure Signature Top-Down Angle)
   camera: {
     position: { x: 0, y: 32, z: 24 },
     lookAt: { x: 0, y: 0, z: 1 },
     frustumSize: 22
   },
 
-  // Lighting Configuration
+  // Balanced Warm Lighting (No Glare, Saturated Pastel Tones)
   lighting: {
-    ambientColor: 0xffffff,
-    ambientIntensity: 0.72,
-    sunColor: 0xfff5e6,
-    sunIntensity: 0.95,
-    sunPosition: { x: 16, y: 32, z: 20 },
-    hemiSky: 0xffffff,
-    hemiGround: 0x334155,
-    hemiIntensity: 0.35
+    ambientColor: 0xfffaed,
+    ambientIntensity: 0.65,
+    sunColor: 0xfff8ee,
+    sunIntensity: 0.80, // Calibrated down from 0.95 to eliminate harsh glare
+    sunPosition: { x: 14, y: 30, z: 18 },
+    hemiSky: 0xe0f2fe,
+    hemiGround: 0x5fa84b, // Warm green bounce from surrounding grass
+    hemiIntensity: 0.40
   },
 
   // World 3D Layout Coordinates (X: left/right, Y: up/down, Z: depth)
   layout: {
     // Street (Z: -18 to -6)
-    streetZ: -10,
-    streetWidth: 32,
-    streetDepth: 9,
+    streetZ: -10.5,
+    streetWidth: 40,
+    streetDepth: 11,
     crosswalkX: 0,
 
-    // Sidewalk (Z: -5.5 to -3)
-    sidewalkZ: -4.2,
-    sidewalkDepth: 3.2,
+    // Sidewalk & Service Area
+    sidewalkZ: -3.8,
+    sidewalkDepth: 3.4,
 
     // Front Serving Counter (Z: 0)
     counter: {
@@ -51,10 +51,10 @@ export const GAME_CONFIG = {
       workerServiceSpot: { x: 0, z: 1.4 }
     },
 
-    // Patio Umbrellas
+    // Inward-Framing Striped Umbrellas
     umbrellas: {
-      left: { x: -5.8, z: 0 },
-      right: { x: 5.8, z: 0 }
+      left: { x: -5.2, z: 0.2 },
+      right: { x: 5.2, z: 0.2 }
     },
 
     // Workstation 1: Sewing Table (T-Shirts)
@@ -114,22 +114,27 @@ export const GAME_CONFIG = {
     ]
   },
 
-  // Color Palette (Low-Poly Eatventure Aesthetic)
+  // Color Palette (Calibrated Eatventure Aesthetic)
   colors: {
     asphalt: 0x374151,
     asphaltMarking: 0x475569,
     crosswalk: 0xf8fafc,
-    sidewalk: 0xe2e8f0,
-    curb: 0xcfd8dc,
-    boutiqueFloor: 0xfbf8f2,
-    boutiquePlank: 0xede4d4,
+    sidewalk: 0xd9dfdf, // Soft warm concrete tone
+    sidewalkTile: 0xc8d0d0, // Subtle paving grid lines
+    curb: 0xbac3c3,
+    grassBorder: 0x5fa84b, // Rich green nature borders
+    treeTrunk: 0x78350f,
+    treeFoliage: 0x48bb78,
+    bushGreen: 0x38a169,
     vanBody: 0x0d9488,
     vanRoof: 0x14b8a6,
     vanTrim: 0x0f766e,
-    vanFloor: 0xe5d5be,
-    counterWood: 0xb87333,
-    counterTop: 0xdf9b56,
-    tableCaramel: 0xc07028,
+    vanFloor: 0xd9dfdf,
+    counterWood: 0xb87333, // Warm caramel oak
+    counterTop: 0xc68642,
+    counterTrim: 0x9a5b23,
+    registerSilver: 0x94a3b8,
+    tableCaramel: 0xb87333,
     tableHoney: 0xdf8d3c,
     umbrellaBlue: 0x0284c7,
     umbrellaWhite: 0xffffff,
@@ -138,7 +143,16 @@ export const GAME_CONFIG = {
     workerCap: 0xef4444,
     raymondCap: 0x10b981,
     lucasCap: 0x8b5cf6,
-    coinGold: 0xf59e0b
+    coinGold: 0xf59e0b,
+    shopperPalette: [
+      { shirt: 0xef4444, hair: 0x1e293b },
+      { shirt: 0x3b82f6, hair: 0x78350f },
+      { shirt: 0x10b981, hair: 0xd97706 },
+      { shirt: 0xf59e0b, hair: 0x475569 },
+      { shirt: 0x8b5cf6, hair: 0x1e293b },
+      { shirt: 0xec4899, hair: 0xb45309 },
+      { shirt: 0x06b6d4, hair: 0x0f172a }
+    ]
   }
 };
 

@@ -3,9 +3,9 @@
  * Tech Stack: Three.js r128 + HTML/CSS UI Overlay
  * Orchestrates:
  * 1. OrthographicCamera with crisp isometric top-down projection.
- * 2. Directional sunlight with soft shadow maps and pastel ambient fill.
+ * 2. Directional sunlight with soft shadow maps and pastel ambient fill (No Glare).
  * 3. Raycaster clicking on 3D workstations and affordable red arrow badge.
- * 4. 60fps game loop driving character waddle, street traffic, and coin physics.
+ * 4. 60fps game loop driving character waddle, customer spawner, street traffic, and coin physics.
  */
 
 import { GAME_CONFIG, gameState } from './config.js';
@@ -56,7 +56,7 @@ export class FitventureApp {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
 
-    // 3. Orthographic Camera (Eatventure Isometric Top-Down)
+    // 3. Orthographic Camera (Eatventure Signature Isometric Top-Down)
     const aspect = width / height;
     const frustum = GAME_CONFIG.camera.frustumSize;
     this.camera = new THREE.OrthographicCamera(
@@ -72,7 +72,7 @@ export class FitventureApp {
     this.camera.position.set(camCfg.position.x, camCfg.position.y, camCfg.position.z);
     this.camera.lookAt(camCfg.lookAt.x, camCfg.lookAt.y, camCfg.lookAt.z);
 
-    // 4. Lighting Setup (Bright, soft, vibrant pastel colors)
+    // 4. Lighting Setup (Balanced Warm Sunlight & Soft Ambient Occlusion Tone)
     const lightCfg = GAME_CONFIG.lighting;
 
     const ambientLight = new THREE.AmbientLight(lightCfg.ambientColor, lightCfg.ambientIntensity);
@@ -128,12 +128,10 @@ export class FitventureApp {
   }
 
   initEvents() {
-    // Window Resize
     window.addEventListener('resize', () => this.onWindowResize());
 
     // Raycasting click detection on 3D objects
     window.addEventListener('pointerdown', (e) => {
-      // Only process clicks that hit the canvas (not UI elements)
       if (e.target.tagName !== 'CANVAS') return;
 
       this.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -141,7 +139,6 @@ export class FitventureApp {
 
       this.raycaster.setFromCamera(this.pointer, this.camera);
 
-      // Collect all interactive meshes
       const interactiveTargets = [
         ...this.sewingStation.clickTargets,
         ...this.jeansStation.clickTargets,
@@ -206,10 +203,19 @@ export class FitventureApp {
   }
 }
 
-// Bootstrap Application on window load
-if (typeof window !== 'undefined') {
-  window.addEventListener('load', () => {
+// Reliable App Launcher
+function startApp() {
+  if (!window.fitventureApp) {
     window.fitventureApp = new FitventureApp();
     console.log('✨ Fitventure: Three.js 3D Engine Initialized Successfully!');
-  });
+  }
+}
+
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', startApp);
+    window.addEventListener('load', startApp);
+  } else {
+    startApp();
+  }
 }

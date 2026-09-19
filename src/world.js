@@ -3,18 +3,18 @@
  * Perspective: Low-Poly 3D Isometric Top-Down
  * Tech Stack: Three.js r128
  * Features:
- * 1. Grey asphalt road with white zebra stripes & yellow dividers.
- * 2. Animated low-poly 3D cars driving across with puffing exhaust smoke spheres.
- * 3. Concrete sidewalk with 3D curb bevel.
- * 4. Warm oak boutique counter with rounded ends, vitrine showcase, and dual POS registers.
- * 5. Flanking 3D conical patio umbrellas with blue/white striped wedges and crisp shadows.
- * 6. Stage 2 Fashion Van (Mobile food-truck boutique).
+ * 1. Soft, warm sidewalk concrete (0xd9dfdf) with subtle paving grid lines (No harsh white glare!).
+ * 2. Rich green nature borders (0x5fa84b) on left/right with stylized bushes and rounded trees.
+ * 3. Warm wooden boutique counter (caramel oak 0xb87333 / 0xc68642) with dual silver cashier registers facing street.
+ * 4. Inward-oriented blue/white striped umbrellas gracefully framing the counter.
+ * 5. Dynamic street traffic (Yellow taxi, Blue sedan) driving left-to-right with puffing white exhaust particles.
+ * 6. Stage 2 Mobile Fashion Van renovation.
  */
 
 import { GAME_CONFIG, gameState } from './config.js';
 
 /**
- * Traffic Manager: Drives low-poly 3D cars across the road with exhaust puff particles
+ * Traffic Manager: Drives low-poly 3D cars smoothly across the road with puffing exhaust particles
  */
 export class TrafficManager {
   constructor(scene, parentGroup) {
@@ -23,16 +23,9 @@ export class TrafficManager {
     this.cars = [];
     this.puffs = [];
 
-    this.carColors = [
-      0xef4444, // Sport Red
-      0xf59e0b, // Yellow Cab
-      0x0ea5e9, // Cyan Hatchback
-      0x8b5cf6, // Purple Cruiser
-      0x10b981  // Mint Compact
-    ];
-
-    this.spawnInterval = 3.6;
-    this.timer = 0.5; // Spawn first car soon
+    this.carTypes = ['taxi', 'sedan', 'coupe'];
+    this.spawnInterval = 3.2;
+    this.timer = 0.4; // Spawn first car almost immediately
   }
 
   update(delta) {
@@ -47,15 +40,19 @@ export class TrafficManager {
       const car = this.cars[i];
       car.group.position.x += car.speed * delta;
 
-      // Exhaust puff emission
+      // Exhaust puff emission from tailpipe
       car.puffTimer = (car.puffTimer || 0) + delta;
-      if (car.puffTimer >= 0.16) {
+      if (car.puffTimer >= 0.14) {
         car.puffTimer = 0;
-        this.emitExhaustPuff(car.group.position.x - 1.8, car.group.position.y + 0.3, car.group.position.z + 0.6);
+        this.emitExhaustPuff(
+          car.group.position.x - 1.9,
+          car.group.position.y + 0.25,
+          car.group.position.z + 0.55
+        );
       }
 
-      // Remove car when off-screen
-      if (car.group.position.x > 22) {
+      // Remove car when off-screen to the right
+      if (car.group.position.x > 24) {
         this.group.remove(car.group);
         this.cars.splice(i, 1);
       }
@@ -67,13 +64,13 @@ export class TrafficManager {
       p.life += delta;
       const progress = p.life / p.maxLife;
 
-      p.mesh.position.x -= delta * 1.5;
-      p.mesh.position.y += delta * 0.8;
-      const scale = 1.0 + progress * 2.2;
+      p.mesh.position.x -= delta * 1.4;
+      p.mesh.position.y += delta * 0.7;
+      const scale = 1.0 + progress * 2.4;
       p.mesh.scale.set(scale, scale, scale);
 
       if (p.mesh.material) {
-        p.mesh.material.opacity = Math.max(0, 1.0 - progress);
+        p.mesh.material.opacity = Math.max(0, 0.8 * (1.0 - progress));
       }
 
       if (p.life >= p.maxLife) {
@@ -84,23 +81,27 @@ export class TrafficManager {
   }
 
   spawnCar() {
-    const color = this.carColors[Math.floor(Math.random() * this.carColors.length)];
+    const type = this.carTypes[Math.floor(Math.random() * this.carTypes.length)];
     const laneZ = Math.random() > 0.5 ? -9.2 : -11.6;
-    const speed = laneZ === -9.2 ? (8.0 + Math.random() * 2.0) : (6.5 + Math.random() * 2.0);
+    const speed = laneZ === -9.2 ? (8.0 + Math.random() * 1.5) : (6.5 + Math.random() * 1.5);
 
     const carGroup = new THREE.Group();
-    carGroup.position.set(-22, 0.4, laneZ);
+    carGroup.position.set(-24, 0.4, laneZ);
 
-    // Car Body
+    let bodyColor = 0x2563eb; // Blue Sedan
+    if (type === 'taxi') bodyColor = 0xf59e0b; // Yellow Taxi
+    else if (type === 'coupe') bodyColor = 0xef4444; // Red Coupe
+
+    // 1. Car Body
     const bodyGeo = new THREE.BoxGeometry(3.6, 0.9, 1.8);
-    const bodyMat = new THREE.MeshLambertMaterial({ color });
+    const bodyMat = new THREE.MeshLambertMaterial({ color: bodyColor });
     const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
     bodyMesh.castShadow = true;
     bodyMesh.receiveShadow = true;
     bodyMesh.position.y = 0.5;
     carGroup.add(bodyMesh);
 
-    // Cabin
+    // 2. Cabin
     const cabinGeo = new THREE.BoxGeometry(2.0, 0.75, 1.5);
     const cabinMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
     const cabinMesh = new THREE.Mesh(cabinGeo, cabinMat);
@@ -108,7 +109,17 @@ export class TrafficManager {
     cabinMesh.castShadow = true;
     carGroup.add(cabinMesh);
 
-    // Wheels (4 cylinders)
+    // 3. Taxi Roof Light (if taxi)
+    if (type === 'taxi') {
+      const taxiSignGeo = new THREE.BoxGeometry(0.8, 0.25, 0.4);
+      const taxiSignMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      const taxiSign = new THREE.Mesh(taxiSignGeo, taxiSignMat);
+      taxiSign.position.set(0.1, 1.62, 0);
+      taxiSign.castShadow = true;
+      carGroup.add(taxiSign);
+    }
+
+    // 4. Wheels (4 Cylinders)
     const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.25, 12);
     wheelGeo.rotateX(Math.PI / 2);
     const wheelMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
@@ -127,7 +138,7 @@ export class TrafficManager {
       carGroup.add(wheel);
     });
 
-    // Headlights (Front Right/Left)
+    // 5. Headlights (Facing +X direction of travel)
     const lightGeo = new THREE.BoxGeometry(0.1, 0.2, 0.3);
     const lightMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
     const l1 = new THREE.Mesh(lightGeo, lightMat);
@@ -144,15 +155,15 @@ export class TrafficManager {
   emitExhaustPuff(x, y, z) {
     const geo = new THREE.SphereGeometry(0.16, 8, 8);
     const mat = new THREE.MeshBasicMaterial({
-      color: 0xe2e8f0,
+      color: 0xf1f5f9,
       transparent: true,
-      opacity: 0.75
+      opacity: 0.8
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y, z);
 
     this.group.add(mesh);
-    this.puffs.push({ mesh, life: 0, maxLife: 0.45 });
+    this.puffs.push({ mesh, life: 0, maxLife: 0.55 });
   }
 }
 
@@ -168,11 +179,11 @@ export class WorldManager {
     this.vanGroup = null;
 
     this.buildTerrain();
+    this.buildNatureBorders();
     this.buildCounter();
     this.buildPatioUmbrellas();
-    this.buildBoutiqueDecor();
 
-    // Initialize Street Traffic
+    // Initialize Dynamic Street Traffic
     this.trafficManager = new TrafficManager(scene, this.worldGroup);
 
     // Listen for stage renovation
@@ -187,11 +198,14 @@ export class WorldManager {
     }
   }
 
+  /**
+   * Terrain with soft warm sidewalk concrete (0xd9dfdf) & subtle paving lines (No Glare!)
+   */
   buildTerrain() {
     const { colors } = GAME_CONFIG;
 
-    // 1. Asphalt Street (Z: -18 to -6)
-    const streetGeo = new THREE.BoxGeometry(40, 0.4, 11);
+    // 1. Asphalt Street (Z: -16 to -5)
+    const streetGeo = new THREE.BoxGeometry(42, 0.4, 11);
     const streetMat = new THREE.MeshLambertMaterial({ color: colors.asphalt });
     const streetMesh = new THREE.Mesh(streetGeo, streetMat);
     streetMesh.position.set(0, -0.2, -10.5);
@@ -199,7 +213,7 @@ export class WorldManager {
     this.worldGroup.add(streetMesh);
 
     // Gutter Line
-    const gutterGeo = new THREE.BoxGeometry(40, 0.05, 0.15);
+    const gutterGeo = new THREE.BoxGeometry(42, 0.05, 0.15);
     const gutterMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
     const gutterMesh = new THREE.Mesh(gutterGeo, gutterMat);
     gutterMesh.position.set(0, 0.02, -5.1);
@@ -208,13 +222,13 @@ export class WorldManager {
     // Yellow Dashed Lane Dividers
     const dashGeo = new THREE.BoxGeometry(1.6, 0.04, 0.2);
     const dashMat = new THREE.MeshBasicMaterial({ color: 0xf1c40f });
-    for (let x = -18; x <= 18; x += 3.2) {
+    for (let x = -19; x <= 19; x += 3.2) {
       const dash = new THREE.Mesh(dashGeo, dashMat);
       dash.position.set(x, 0.02, -10.5);
       this.worldGroup.add(dash);
     }
 
-    // White Zebra Crosswalk Stripes (Z: -15 to -5.5)
+    // White Zebra Crosswalk Stripes (Z: -14.5 to -5.8)
     const stripeGeo = new THREE.BoxGeometry(3.6, 0.04, 0.55);
     const stripeMat = new THREE.MeshBasicMaterial({ color: colors.crosswalk });
     for (let z = -14.5; z <= -6.0; z += 1.05) {
@@ -223,38 +237,152 @@ export class WorldManager {
       this.worldGroup.add(stripe);
     }
 
-    // 2. Concrete Sidewalk (Z: -5 to -2.6)
-    const sidewalkGeo = new THREE.BoxGeometry(40, 0.5, 3.4);
-    const sidewalkMat = new THREE.MeshLambertMaterial({ color: colors.sidewalk });
-    const sidewalkMesh = new THREE.Mesh(sidewalkGeo, sidewalkMat);
-    sidewalkMesh.position.set(0, -0.05, -3.7);
-    sidewalkMesh.receiveShadow = true;
-    this.worldGroup.add(sidewalkMesh);
+    // 2. Soft Warm Sidewalk Concrete (Z: -5.0 to 14.0) - Replaces blinding white!
+    const walkGeo = new THREE.BoxGeometry(14.8, 0.38, 19);
+    const walkMat = new THREE.MeshLambertMaterial({ color: colors.sidewalk });
+    const walkMesh = new THREE.Mesh(walkGeo, walkMat);
+    walkMesh.position.set(0, -0.19, 4.5);
+    walkMesh.receiveShadow = true;
+    this.worldGroup.add(walkMesh);
 
-    // Curb Bevel
-    const curbGeo = new THREE.BoxGeometry(40, 0.2, 0.2);
+    // Sidewalk Curb Bevel
+    const curbGeo = new THREE.BoxGeometry(14.8, 0.2, 0.25);
     const curbMat = new THREE.MeshLambertMaterial({ color: colors.curb });
     const curbMesh = new THREE.Mesh(curbGeo, curbMat);
-    curbMesh.position.set(0, 0.15, -5.35);
+    curbMesh.position.set(0, 0.1, -5.1);
     this.worldGroup.add(curbMesh);
 
-    // 3. Boutique Parquet Floor (Z: -2.0 to 14.0)
-    const floorGeo = new THREE.BoxGeometry(40, 0.4, 16);
-    const floorMat = new THREE.MeshLambertMaterial({ color: colors.boutiqueFloor });
-    this.boutiqueFloorMesh = new THREE.Mesh(floorGeo, floorMat);
-    this.boutiqueFloorMesh.position.set(0, -0.2, 6.0);
-    this.boutiqueFloorMesh.receiveShadow = true;
-    this.worldGroup.add(this.boutiqueFloorMesh);
+    // Subtle Paving Grid Lines (Fine geometric sidewalk slabs)
+    const gridLineMat = new THREE.MeshBasicMaterial({ color: colors.sidewalkTile });
 
-    // Decorative Inlay Parquet Rug Runner under service area
-    const rugGeo = new THREE.BoxGeometry(10.5, 0.04, 11);
-    const rugMat = new THREE.MeshLambertMaterial({ color: 0xf5eedf });
-    const rugMesh = new THREE.Mesh(rugGeo, rugMat);
-    rugMesh.position.set(0, 0.02, 4.0);
-    rugMesh.receiveShadow = true;
-    this.worldGroup.add(rugMesh);
+    // Horizontal tile lines
+    for (let z = -4.5; z <= 13.5; z += 2.2) {
+      const lineGeo = new THREE.BoxGeometry(14.6, 0.02, 0.06);
+      const line = new THREE.Mesh(lineGeo, gridLineMat);
+      line.position.set(0, 0.01, z);
+      this.worldGroup.add(line);
+    }
+
+    // Vertical tile lines
+    for (let x = -6.6; x <= 6.6; x += 2.2) {
+      const lineGeo = new THREE.BoxGeometry(0.06, 0.02, 18.8);
+      const line = new THREE.Mesh(lineGeo, gridLineMat);
+      line.position.set(x, 0.01, 4.5);
+      this.worldGroup.add(line);
+    }
   }
 
+  /**
+   * Surrounded By Nature: Rich green grass borders (0x5fa84b) with bushes & rounded trees
+   */
+  buildNatureBorders() {
+    const { colors } = GAME_CONFIG;
+
+    // 1. Left Rich Green Grass Strip (X: -20 to -7.4)
+    const leftGrassGeo = new THREE.BoxGeometry(13, 0.42, 20);
+    const grassMat = new THREE.MeshLambertMaterial({ color: colors.grassBorder });
+    const leftGrass = new THREE.Mesh(leftGrassGeo, grassMat);
+    leftGrass.position.set(-13.8, -0.18, 4.5);
+    leftGrass.receiveShadow = true;
+    this.worldGroup.add(leftGrass);
+
+    // 2. Right Rich Green Grass Strip (X: 7.4 to 20)
+    const rightGrassGeo = new THREE.BoxGeometry(13, 0.42, 20);
+    const rightGrass = new THREE.Mesh(rightGrassGeo, grassMat);
+    rightGrass.position.set(13.8, -0.18, 4.5);
+    rightGrass.receiveShadow = true;
+    this.worldGroup.add(rightGrass);
+
+    // 3. Rounded Low-Poly Trees on Left and Right borders
+    this.buildCuteTree(-9.5, -1.5);
+    this.buildCuteTree(-10.8, 4.2);
+    this.buildCuteTree(-9.2, 9.8);
+
+    this.buildCuteTree(9.5, -1.5);
+    this.buildCuteTree(10.8, 4.2);
+    this.buildCuteTree(9.2, 9.8);
+
+    // 4. Stylized Low-Poly Green Bushes flanking the edges
+    this.buildBushCluster(-7.8, -3.8);
+    this.buildBushCluster(-7.8, 1.2);
+    this.buildBushCluster(-7.8, 6.8);
+    this.buildBushCluster(-7.8, 12.0);
+
+    this.buildBushCluster(7.8, -3.8);
+    this.buildBushCluster(7.8, 1.2);
+    this.buildBushCluster(7.8, 6.8);
+    this.buildBushCluster(7.8, 12.0);
+  }
+
+  buildCuteTree(x, z) {
+    const treeGroup = new THREE.Group();
+    treeGroup.position.set(x, 0, z);
+
+    // Soft Contact Shadow
+    const shadowGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.02, 16);
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 });
+    const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+    shadow.position.y = 0.04;
+    treeGroup.add(shadow);
+
+    // Wooden Trunk
+    const trunkGeo = new THREE.CylinderGeometry(0.24, 0.32, 2.4, 8);
+    const trunkMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.treeTrunk });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.y = 1.2;
+    trunk.castShadow = true;
+    treeGroup.add(trunk);
+
+    // Fluffy Layered Green Foliage (Compound rounded low-poly spheres)
+    const folColors = [0x48bb78, 0x38a169, 0x2f855a];
+
+    // Bottom Foliage Layer
+    const botGeo = new THREE.DodecahedronGeometry(1.6, 1);
+    const botMat = new THREE.MeshLambertMaterial({ color: folColors[1] });
+    const bot = new THREE.Mesh(botGeo, botMat);
+    bot.position.y = 2.8;
+    bot.castShadow = true;
+    treeGroup.add(bot);
+
+    // Mid/Top Foliage Layer
+    const topGeo = new THREE.DodecahedronGeometry(1.2, 1);
+    const topMat = new THREE.MeshLambertMaterial({ color: folColors[0] });
+    const top = new THREE.Mesh(topGeo, topMat);
+    top.position.set(0.1, 4.0, 0.1);
+    top.castShadow = true;
+    treeGroup.add(top);
+
+    this.worldGroup.add(treeGroup);
+  }
+
+  buildBushCluster(x, z) {
+    const cluster = new THREE.Group();
+    cluster.position.set(x, 0, z);
+
+    const bushMat1 = new THREE.MeshLambertMaterial({ color: 0x38a169 });
+    const bushMat2 = new THREE.MeshLambertMaterial({ color: 0x22c55e });
+
+    const b1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 1), bushMat1);
+    b1.position.set(0, 0.55, 0);
+    b1.castShadow = true;
+    cluster.add(b1);
+
+    const b2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.5, 1), bushMat2);
+    b2.position.set(0.2, 0.42, 0.5);
+    b2.castShadow = true;
+    cluster.add(b2);
+
+    const b3 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.45, 1), bushMat1);
+    b3.position.set(-0.2, 0.38, -0.4);
+    b3.castShadow = true;
+    cluster.add(b3);
+
+    this.worldGroup.add(cluster);
+  }
+
+  /**
+   * Warm Caramel Oak Counter (0xb87333 / 0xc68642) with bevelled edges and dual silver cashier registers
+   */
   buildCounter() {
     const { colors, layout } = GAME_CONFIG;
     const cfg = layout.counter;
@@ -263,8 +391,8 @@ export class WorldManager {
     this.counterGroup.position.set(cfg.x, 0, cfg.z);
     this.worldGroup.add(this.counterGroup);
 
-    // 1. Warm Oak Counter Body with Rounded Ends
-    const centerW = cfg.width - cfg.depth; // length of center box
+    // 1. Warm Caramel Oak Counter Body with Rounded Ends
+    const centerW = cfg.width - cfg.depth;
     const bodyGeo = new THREE.BoxGeometry(centerW, cfg.height, cfg.depth);
     const bodyMat = new THREE.MeshLambertMaterial({ color: colors.counterWood });
     const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
@@ -287,7 +415,7 @@ export class WorldManager {
     rightEnd.receiveShadow = true;
     this.counterGroup.add(rightEnd);
 
-    // Vertical Fluted Slats on front face
+    // Vertical Fluted Slats on Front Face
     const slatGeo = new THREE.BoxGeometry(0.18, cfg.height * 0.75, 0.12);
     const slatMat = new THREE.MeshLambertMaterial({ color: colors.counterTrim });
     for (let x = -centerW / 2 + 0.4; x <= centerW / 2 - 0.4; x += 0.5) {
@@ -296,7 +424,7 @@ export class WorldManager {
       this.counterGroup.add(slat);
     }
 
-    // 2. Polished Honey Oak Countertop Surface
+    // 2. Bevelled Polished Caramel Oak Countertop Surface
     const topW = centerW + 0.3;
     const topD = cfg.depth + 0.3;
     const topGeo = new THREE.BoxGeometry(topW, 0.18, topD);
@@ -336,55 +464,93 @@ export class WorldManager {
     this.counterGroup.add(s2);
     this.counterGroup.add(s3);
 
-    // 4. Dual Checkout POS Tablets (at Customer Slots 0 & 1)
-    this.buildPOSRegister(-1.8, cfg.height + 0.22);
-    this.buildPOSRegister(1.8, cfg.height + 0.22);
+    // 4. Two Silver Cashier Registers Facing the Street (Slot 0 & Slot 1)
+    this.buildSilverCashierRegister(-1.8, cfg.height + 0.18);
+    this.buildSilverCashierRegister(1.8, cfg.height + 0.18);
   }
 
-  buildPOSRegister(x, y) {
-    const posGroup = new THREE.Group();
-    posGroup.position.set(x, y, -0.2);
+  /**
+   * Silver Cashier Register facing the street (towards customers at -Z)
+   */
+  buildSilverCashierRegister(x, y) {
+    const regGroup = new THREE.Group();
+    regGroup.position.set(x, y, -0.15);
 
-    // Stand
-    const standGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.2, 8);
-    const standMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-    const stand = new THREE.Mesh(standGeo, standMat);
-    stand.position.y = 0.1;
-    posGroup.add(stand);
+    // Silver Cash Drawer Base
+    const baseGeo = new THREE.BoxGeometry(0.72, 0.18, 0.65);
+    const silverMat = new THREE.MeshLambertMaterial({ color: 0xcbd5e1 });
+    const base = new THREE.Mesh(baseGeo, silverMat);
+    base.position.y = 0.09;
+    base.castShadow = true;
+    regGroup.add(base);
 
-    // Angled Tablet
-    const tabGeo = new THREE.BoxGeometry(0.55, 0.4, 0.06);
-    tabGeo.rotateX(-Math.PI / 6);
-    const tabMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
-    const tab = new THREE.Mesh(tabGeo, tabMat);
-    tab.position.y = 0.28;
-    posGroup.add(tab);
+    // Keypad Plate
+    const keyGeo = new THREE.BoxGeometry(0.45, 0.06, 0.3);
+    keyGeo.rotateX(-Math.PI / 8);
+    const keyMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
+    const keyPlate = new THREE.Mesh(keyGeo, keyMat);
+    keyPlate.position.set(0, 0.22, 0.1);
+    regGroup.add(keyPlate);
 
-    // Glowing Screen
-    const screenGeo = new THREE.BoxGeometry(0.48, 0.32, 0.02);
-    screenGeo.rotateX(-Math.PI / 6);
-    const screenMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
-    const screen = new THREE.Mesh(screenGeo, screenMat);
-    screen.position.set(0, 0.29, -0.03);
-    posGroup.add(screen);
+    // Register Stand
+    const standGeo = new THREE.BoxGeometry(0.12, 0.32, 0.12);
+    const stand = new THREE.Mesh(standGeo, silverMat);
+    stand.position.set(0, 0.32, -0.15);
+    regGroup.add(stand);
 
-    this.counterGroup.add(posGroup);
+    // Silver Touchscreen Display facing Street (-Z)
+    const screenBoxGeo = new THREE.BoxGeometry(0.62, 0.44, 0.08);
+    screenBoxGeo.rotateX(Math.PI / 10); // Angled down toward customer
+    const screenBox = new THREE.Mesh(screenBoxGeo, silverMat);
+    screenBox.position.set(0, 0.52, -0.15);
+    screenBox.castShadow = true;
+    regGroup.add(screenBox);
+
+    // Glowing Green Cashier Screen Display
+    const displayGeo = new THREE.PlaneGeometry(0.54, 0.36);
+    displayGeo.rotateX(Math.PI / 10);
+    displayGeo.rotateY(Math.PI); // Facing -Z toward customer
+    const displayMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
+    const display = new THREE.Mesh(displayGeo, displayMat);
+    display.position.set(0, 0.52, -0.2);
+    regGroup.add(display);
+
+    // Barcode Scanner Wand on the side
+    const scanGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.3, 8);
+    scanGeo.rotateZ(Math.PI / 4);
+    const scanMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+    const scanner = new THREE.Mesh(scanGeo, scanMat);
+    scanner.position.set(0.42, 0.22, 0);
+    regGroup.add(scanner);
+
+    this.counterGroup.add(regGroup);
   }
 
+  /**
+   * Striped Umbrellas oriented INWARD to frame the counter gracefully
+   */
   buildPatioUmbrellas() {
     const { layout } = GAME_CONFIG;
-    this.umbrellaLeft = this.create3DUmbrella(layout.umbrellas.left.x, layout.umbrellas.left.z);
-    this.umbrellaRight = this.create3DUmbrella(layout.umbrellas.right.x, layout.umbrellas.right.z);
+
+    // Left umbrella tilted slightly inward to the right (rotation.z = -0.08)
+    this.umbrellaLeft = this.create3DUmbrella(layout.umbrellas.left.x, layout.umbrellas.left.z, -0.08);
+    // Right umbrella tilted slightly inward to the left (rotation.z = 0.08)
+    this.umbrellaRight = this.create3DUmbrella(layout.umbrellas.right.x, layout.umbrellas.right.z, 0.08);
+
     this.worldGroup.add(this.umbrellaLeft);
     this.worldGroup.add(this.umbrellaRight);
   }
 
-  /**
-   * True 3D Conical Patio Umbrella with Curved Striped Wedges
-   */
-  create3DUmbrella(x, z) {
+  create3DUmbrella(x, z, inwardTilt = 0) {
     const group = new THREE.Group();
     group.position.set(x, 0, z);
+
+    // Ground Contact Shadow Disc
+    const shadowGeo = new THREE.CylinderGeometry(2.2, 2.2, 0.02, 20);
+    const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.24 });
+    const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+    shadow.position.y = 0.02;
+    group.add(shadow);
 
     // Cast Iron Heavy Base
     const baseGeo = new THREE.CylinderGeometry(0.85, 0.95, 0.18, 16);
@@ -394,7 +560,7 @@ export class WorldManager {
     baseMesh.receiveShadow = true;
     group.add(baseMesh);
 
-    // Teak / Steel Pole
+    // Steel / Teak Pole
     const poleGeo = new THREE.CylinderGeometry(0.09, 0.09, 4.6, 12);
     const poleMat = new THREE.MeshLambertMaterial({ color: 0x64748b });
     const poleMesh = new THREE.Mesh(poleGeo, poleMat);
@@ -402,7 +568,7 @@ export class WorldManager {
     poleMesh.castShadow = true;
     group.add(poleMesh);
 
-    // 3D Conical Canopy (10 Curved Blue & White Wedges)
+    // 3D Conical Canopy (10 Curved Blue & White Striped Wedges)
     const canopyRadius = 2.6;
     const canopyHeight = 1.6;
     const segments = 10;
@@ -410,6 +576,7 @@ export class WorldManager {
 
     const canopyGroup = new THREE.Group();
     canopyGroup.position.y = 4.2;
+    canopyGroup.rotation.z = inwardTilt; // Graceful inward framing angle!
 
     for (let i = 0; i < segments; i++) {
       const a1 = (i * 2 * Math.PI) / segments;
@@ -451,41 +618,18 @@ export class WorldManager {
     return group;
   }
 
-  buildBoutiqueDecor() {
-    // Left Wall Hedges
-    const hedgeMat = new THREE.MeshLambertMaterial({ color: 0x16a34a });
-    for (let z = 0; z <= 10; z += 2.2) {
-      const hGeo = new THREE.SphereGeometry(0.95, 12, 12);
-      const hMesh = new THREE.Mesh(hGeo, hedgeMat);
-      hMesh.position.set(-8.8, 0.7, z);
-      hMesh.castShadow = true;
-      this.worldGroup.add(hMesh);
-    }
-
-    // Right Wall Hedges
-    for (let z = 0; z <= 10; z += 2.2) {
-      const hGeo = new THREE.SphereGeometry(0.95, 12, 12);
-      const hMesh = new THREE.Mesh(hGeo, hedgeMat);
-      hMesh.position.set(8.8, 0.7, z);
-      hMesh.castShadow = true;
-      this.worldGroup.add(hMesh);
-    }
-  }
-
   switchToStage2Van() {
     if (this.vanGroup) return;
 
-    // Remove stage 1 umbrellas
     if (this.umbrellaLeft) this.worldGroup.remove(this.umbrellaLeft);
     if (this.umbrellaRight) this.worldGroup.remove(this.umbrellaRight);
 
-    // Build Stage 2 Mobile Fashion Van (Custom Food-Truck Vehicle)
+    // Build Stage 2 Mobile Fashion Van
     this.vanGroup = new THREE.Group();
     this.vanGroup.position.set(0, 0, 5.0);
 
     const { colors } = GAME_CONFIG;
 
-    // Van Vehicle Body Frame
     const vanW = 12.0;
     const vanH = 5.2;
     const vanD = 9.0;
@@ -497,14 +641,14 @@ export class WorldManager {
     vanMesh.receiveShadow = true;
     this.vanGroup.add(vanMesh);
 
-    // Open Service Window Cutout (Hollow interior floor visible)
+    // Open Service Window Cutout
     const winGeo = new THREE.BoxGeometry(8.6, 3.8, 8.2);
     const winMat = new THREE.MeshLambertMaterial({ color: colors.vanFloor });
     const winMesh = new THREE.Mesh(winGeo, winMat);
     winMesh.position.set(0, 2.4, 0);
     this.vanGroup.add(winMesh);
 
-    // 4 Heavy-Duty Van Wheels
+    // 4 Wheels
     const tireGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.45, 16);
     tireGeo.rotateX(Math.PI / 2);
     const tireMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
@@ -523,14 +667,14 @@ export class WorldManager {
       this.vanGroup.add(w);
     });
 
-    // Roof Luggage Rack with Travel Suitcases
+    // Roof Luggage Rack
     const rackGeo = new THREE.BoxGeometry(7.5, 0.15, 6.5);
     const rackMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
     const rack = new THREE.Mesh(rackGeo, rackMat);
     rack.position.set(0, vanH + 0.1, 0);
     this.vanGroup.add(rack);
 
-    // Suitcases on roof
+    // Suitcases
     const sc1 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 1.2), new THREE.MeshLambertMaterial({ color: 0xb45309 }));
     sc1.position.set(-1.8, vanH + 0.45, 0);
     sc1.castShadow = true;
