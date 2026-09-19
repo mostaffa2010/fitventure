@@ -3,15 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Fitventure</title>
+    <title>Fitventure - 3D Boutique Idle Tycoon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1A1C23; }
-        #game-container { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #1a1d24; font-family: 'Fredoka', 'Nunito', sans-serif; }
+        #game-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #game-container canvas { display: block; width: 100%; height: 100%; }
+        #ui-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <div id="game-container"></div>
+    <div id="ui-container"></div>
     <script type="module" src="src/main.js"></script>
 </body>
 </html>
