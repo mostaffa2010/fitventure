@@ -1,674 +1,478 @@
 /**
- * Fitventure - Workstations & 3D Crafting Tables
- * 1. Station 1 (Sewing Table / T-Shirts): 3D caramel wood table, stylized white sewing machine
- *    with silver handwheel, golden scissors, colorful thread spool, and pastel folded T-shirts.
- * 2. Affordable Upgrade Red Arrow Badge (↑): Pulsing red circular badge anchored at top-left,
- *    visible ONLY when player can afford the next upgrade.
- * 3. Stage 1 Level 25 Cap: Shows "Level X / 25" and "MAX LEVEL" when capped.
- * 4. Station 2 (Jeans Table) & Station 3 (Hats Rack): Dotted unlockable workstations.
- * 5. Counter Station with rounded ends and Fredoka cartoon typography.
+ * Fitventure - 3D Workstations & Crafting Tables
+ * Tech Stack: Three.js r128
+ * Features:
+ * 1. 3D Sewing Table: Rich caramel wood table, stylized sewing machine with needle & handwheel,
+ *    golden scissors, colorful thread spool, and stacked folded pastel T-shirts.
+ * 2. Bouncing 3D Red Arrow Badge (↑): Pulsing red disc with bold white up-arrow,
+ *    visible ONLY when playerCoins >= sewingStation.nextCost.
+ * 3. 3D Radial Circular Progress Ring floating above worker during crafting.
+ * 4. Station 2 (Jeans Table) & Station 3 (Hats Rack): Dotted unlockable bounding boxes in Stage 2.
+ * 5. Floating 3D Gold Coins Spawner with arcing bezier trajectories.
  */
 
-import { GAME_CONFIG, FONT_FAMILY, gameState } from './config.js';
+import { GAME_CONFIG, gameState } from './config.js';
 
 /**
- * Radial Progress Gauge above worker during crafting
+ * 3D Radial Circular Progress Ring (Torus ring that fills in bright green above worker)
  */
-export class RadialGauge {
-  constructor(scene, parentContainer, x, y) {
+export class RadialProgressRing {
+  constructor(scene, parentGroup) {
     this.scene = scene;
-    this.container = scene.add.container(x, y);
-    this.container.setDepth(35);
-    this.container.setVisible(false);
-    parentContainer.add(this.container);
+    this.group = new THREE.Group();
+    this.group.visible = false;
+    parentGroup.add(this.group);
 
-    this.graphics = scene.add.graphics();
-    this.container.add(this.graphics);
+    // Track Ring (Dark grey base ring)
+    const trackGeo = new THREE.TorusGeometry(0.42, 0.07, 8, 24);
+    trackGeo.rotateX(Math.PI / 2);
+    const trackMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
+    const trackMesh = new THREE.Mesh(trackGeo, trackMat);
+    this.group.add(trackMesh);
 
-    this.centerText = scene.add.text(0, 0, '✂️', { fontSize: '18px' }).setOrigin(0.5);
-    this.container.add(this.centerText);
-
-    this.radius = 24;
-    this.thickness = 7;
-    this.progress = 0;
-    this.progressTween = null;
+    // Active Filling Ring (Green arc)
+    this.fillMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+    this.fillMesh = null;
+    this.duration = 1.0;
+    this.elapsed = 0;
+    this.active = false;
+    this.onComplete = null;
   }
 
-  setIcon(icon) {
-    this.centerText.setText(icon);
-  }
-
-  setPosition(x, y) {
-    this.container.setPosition(x, y);
-  }
-
-  draw(progress) {
-    this.graphics.clear();
-    const r = this.radius;
-
-    // Soft drop shadow
-    this.graphics.fillStyle(0x000000, 0.28);
-    this.graphics.fillCircle(0, 3, r + this.thickness / 2);
-
-    // Track ring
-    this.graphics.lineStyle(this.thickness, 0x1e293b, 0.9);
-    this.graphics.strokeCircle(0, 0, r);
-
-    // Inner disc
-    this.graphics.fillStyle(0xffffff, 0.96);
-    this.graphics.fillCircle(0, 0, r - this.thickness / 2);
-
-    // Green Active Arc
-    if (progress > 0) {
-      this.graphics.lineStyle(this.thickness, 0x22c55e, 1.0);
-      this.graphics.beginPath();
-      const startAngle = -Math.PI / 2;
-      const endAngle = startAngle + (Math.PI * 2 * Phaser.Math.Clamp(progress, 0, 1));
-      this.graphics.arc(0, 0, r, startAngle, endAngle, false);
-      this.graphics.strokePath();
-    }
-  }
-
-  start(duration, onComplete) {
-    this.stop();
-    this.progress = 0;
-    this.draw(0);
-    this.container.setScale(0);
-    this.container.setVisible(true);
-
-    this.scene.tweens.add({
-      targets: this.container,
-      scale: 1,
-      duration: 120,
-      ease: 'Back.easeOut'
-    });
-
-    this.progressTween = this.scene.tweens.add({
-      targets: this,
-      progress: 1,
-      duration: duration,
-      ease: 'Linear',
-      onUpdate: () => {
-        this.draw(this.progress);
-      },
-      onComplete: () => {
-        this.scene.tweens.add({
-          targets: this.container,
-          scale: 1.15,
-          duration: 90,
-          yoyo: true,
-          onComplete: () => {
-            this.container.setVisible(false);
-            if (onComplete) onComplete();
-          }
-        });
-      }
-    });
+  start(x, y, z, duration, onComplete) {
+    this.group.position.set(x, y, z);
+    this.duration = duration;
+    this.elapsed = 0;
+    this.active = true;
+    this.onComplete = onComplete;
+    this.group.visible = true;
+    this.updateRingArc(0.01);
   }
 
   stop() {
-    if (this.progressTween) {
-      this.progressTween.stop();
-      this.progressTween = null;
+    this.active = false;
+    this.group.visible = false;
+  }
+
+  update(delta) {
+    if (!this.active) return;
+    this.elapsed += delta;
+    const progress = Math.min(1.0, this.elapsed / this.duration);
+    this.updateRingArc(progress);
+
+    if (this.elapsed >= this.duration) {
+      this.stop();
+      if (this.onComplete) this.onComplete();
     }
-    this.container.setVisible(false);
+  }
+
+  updateRingArc(progress) {
+    if (this.fillMesh) {
+      this.group.remove(this.fillMesh);
+      this.fillMesh.geometry.dispose();
+    }
+
+    const arc = Math.max(0.05, Math.PI * 2 * PhaserMathClamp(progress, 0, 1));
+    const fillGeo = new THREE.TorusGeometry(0.42, 0.08, 8, 24, arc);
+    fillGeo.rotateX(Math.PI / 2);
+    fillGeo.rotateY(-Math.PI / 2); // Start from top
+    this.fillMesh = new THREE.Mesh(fillGeo, this.fillMat);
+    this.group.add(this.fillMesh);
   }
 }
 
+function PhaserMathClamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
 /**
- * Station 1: Sewing Table (T-Shirts)
- * 3D Isometric Caramel Wood Tailoring Station + Affordable Upgrade Red Arrow Badge
+ * Station 1: 3D Sewing Table (T-Shirts)
+ * Rich wooden finish, fabric rolls, golden scissors, folded pastel T-shirts,
+ * and Bouncing 3D Red Arrow Badge (↑).
  */
 export class SewingStation {
-  constructor(scene, parentContainer) {
+  constructor(scene, parentGroup) {
     this.scene = scene;
     const cfg = GAME_CONFIG.layout.station1;
     this.x = cfg.x;
     this.y = cfg.y;
+    this.z = cfg.z;
     this.width = cfg.width;
     this.height = cfg.height;
+    this.depth = cfg.depth;
 
-    this.container = scene.add.container(this.x, this.y);
-    this.container.setDepth(8);
-    parentContainer.add(this.container);
+    this.group = new THREE.Group();
+    this.group.position.set(this.x, 0, this.z);
+    parentGroup.add(this.group);
 
-    this.draw3DCaramelTable();
-    this.createLevelBadge();
-    this.createRedArrowBadge();
-    this.setupInteraction();
+    this.clickTargets = [];
+
+    this.build3DCaramelTable();
+    this.buildRedArrowBadge();
 
     // Event listeners
     gameState.on('coinsChanged', () => this.updateRedBadgeVisibility());
     gameState.on('stationUpgraded', (data) => {
       if (data.station === 'sewing') {
-        this.updateLevelBadge(data.level);
         this.updateRedBadgeVisibility();
-        this.playUpgradeEffect();
+        this.playUpgradePop();
       }
     });
-    gameState.on('stageRenovated', () => {
-      this.updateLevelBadge(gameState.sewingStation.level);
-      this.updateRedBadgeVisibility();
-    });
+    gameState.on('stageRenovated', () => this.updateRedBadgeVisibility());
   }
 
-  /**
-   * Artistic Overhaul: 3D Isometric Polished Caramel Wood Tailoring Station
-   * Tabletop: Stylized white sewing machine with silver handwheel, golden scissors,
-   * colorful thread spool, and stack of folded pastel T-shirts.
-   */
-  draw3DCaramelTable() {
+  build3DCaramelTable() {
     const w = this.width;
     const h = this.height;
-    const g = this.scene.add.graphics();
-    this.container.add(g);
+    const d = this.depth;
+    const { colors } = GAME_CONFIG;
 
-    // 1. Soft 2.5D Translucent Dark Oval Ambient Drop Shadow
-    g.fillStyle(0x000000, 0.28);
-    g.fillEllipse(0, h / 2 + 8, w * 1.06, 26);
+    // 1. Caramel Wooden Desk Body
+    const bodyGeo = new THREE.BoxGeometry(w, h, d);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: colors.tableCaramel });
+    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    bodyMesh.position.y = h / 2;
+    bodyMesh.castShadow = true;
+    bodyMesh.receiveShadow = true;
+    bodyMesh.userData = { type: 'station', stationId: 'sewing' };
+    this.group.add(bodyMesh);
+    this.clickTargets.push(bodyMesh);
 
-    // 2. 3D Caramel Wooden Table Body (Front depth & beveled bottom)
-    g.fillStyle(0x965018, 1.0); // Darker caramel underside bevel
-    g.fillRoundedRect(-w / 2, -h / 2 + 8, w, h - 2, 14);
+    // Front Drawer & Brass Knob
+    const drawerGeo = new THREE.BoxGeometry(w * 0.7, h * 0.35, 0.1);
+    const drawerMat = new THREE.MeshLambertMaterial({ color: 0x965018 });
+    const drawer = new THREE.Mesh(drawerGeo, drawerMat);
+    drawer.position.set(0, h * 0.45, -d / 2 - 0.05);
+    this.group.add(drawer);
 
-    g.fillStyle(0xc07028, 1.0); // Polished caramel wood front face
-    g.fillRoundedRect(-w / 2, -h / 2 + 4, w, h - 6, 14);
+    const knobGeo = new THREE.SphereGeometry(0.12, 12, 12);
+    const knobMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+    const knob = new THREE.Mesh(knobGeo, knobMat);
+    knob.position.set(0, h * 0.45, -d / 2 - 0.15);
+    this.group.add(knob);
 
-    // Front wood grain & drawer detail
-    g.fillStyle(0xa85d1d, 1.0);
-    g.fillRoundedRect(-w / 2 + 20, 4, w - 40, h / 2 - 10, 6);
-    g.lineStyle(1.5, 0x824412, 0.8);
-    g.strokeRoundedRect(-w / 2 + 20, 4, w - 40, h / 2 - 10, 6);
+    // 2. Beveled Polished Honey Tabletop Surface
+    const topGeo = new THREE.BoxGeometry(w + 0.2, 0.18, d + 0.2);
+    const topMat = new THREE.MeshLambertMaterial({ color: colors.tableHoney });
+    const topMesh = new THREE.Mesh(topGeo, topMat);
+    topMesh.position.y = h + 0.09;
+    topMesh.castShadow = true;
+    topMesh.receiveShadow = true;
+    topMesh.userData = { type: 'station', stationId: 'sewing' };
+    this.group.add(topMesh);
+    this.clickTargets.push(topMesh);
 
-    // Brass drawer pull knob
-    g.fillStyle(0xf59e0b, 1.0);
-    g.fillCircle(0, h / 4 + 1, 4.5);
-    g.fillStyle(0xfef08a, 1.0);
-    g.fillCircle(-1, h / 4, 1.5);
+    // 3. Green Cutting Mat on Tabletop
+    const matGeo = new THREE.BoxGeometry(w * 0.75, 0.04, d * 0.75);
+    const matMat = new THREE.MeshLambertMaterial({ color: 0x10b981 });
+    const matMesh = new THREE.Mesh(matGeo, matMat);
+    matMesh.position.set(0, h + 0.2, 0);
+    this.group.add(matMesh);
 
-    // 3. Polished Honey Amber Tabletop Surface with Rounded Edges
-    g.fillStyle(0xdf8d3c, 1.0);
-    g.fillRoundedRect(-w / 2 - 2, -h / 2 - 4, w + 4, h * 0.56, 12);
+    // 4. Stylized White Sewing Machine (Right Side)
+    const smGroup = new THREE.Group();
+    smGroup.position.set(w * 0.28, h + 0.2, 0);
 
-    // Top edge glossy highlight shine
-    g.fillStyle(0xffffff, 0.35);
-    g.fillRoundedRect(-w / 2 + 10, -h / 2 - 3, w - 20, 4, 2);
+    const smBodyGeo = new THREE.BoxGeometry(0.9, 0.5, 0.45);
+    const smBodyMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const smBody = new THREE.Mesh(smBodyGeo, smBodyMat);
+    smBody.position.y = 0.25;
+    smBody.castShadow = true;
+    smGroup.add(smBody);
 
-    // 4. Stylized White Sewing Machine with Needle & Silver Handwheel (Right Side)
-    const smX = w / 2 - 40;
-    const smY = -14;
+    // Arm & Needle Pillar
+    const smArmGeo = new THREE.BoxGeometry(0.3, 0.45, 0.4);
+    const smArm = new THREE.Mesh(smArmGeo, smBodyMat);
+    smArm.position.set(-0.25, 0.55, 0);
+    smGroup.add(smArm);
 
-    // Machine shadow
-    g.fillStyle(0x000000, 0.2);
-    g.fillRoundedRect(smX - 18, smY - 6, 36, 26, 4);
+    const smTopGeo = new THREE.BoxGeometry(0.7, 0.2, 0.35);
+    const smTop = new THREE.Mesh(smTopGeo, smBodyMat);
+    smTop.position.set(-0.05, 0.7, 0);
+    smGroup.add(smTop);
 
-    // White glossy body
-    g.fillStyle(0xffffff, 1.0);
-    g.fillRoundedRect(smX - 16, smY - 8, 32, 22, 5);
-
-    // Upper arm
-    g.fillStyle(0xf1f5f9, 1.0);
-    g.fillRect(smX - 14, smY - 18, 10, 12);
-    g.fillRect(smX - 14, smY - 20, 26, 7);
-
-    // Chrome Needle bar & Presser foot
-    g.fillStyle(0x94a3b8, 1.0);
-    g.fillRect(smX + 8, smY - 14, 2.5, 10);
-    g.fillStyle(0x64748b, 1.0);
-    g.fillRect(smX + 6, smY - 4, 6, 2);
+    // Chrome Needle
+    const needleGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+    const needleMat = new THREE.MeshLambertMaterial({ color: 0xcfd8dc });
+    const needle = new THREE.Mesh(needleGeo, needleMat);
+    needle.position.set(0.2, 0.45, 0);
+    smGroup.add(needle);
 
     // Silver Handwheel on the right side
-    g.fillStyle(0xcfd8dc, 1.0);
-    g.fillCircle(smX + 16, smY - 14, 6);
-    g.fillStyle(0x94a3b8, 1.0);
-    g.fillCircle(smX + 16, smY - 14, 3);
+    const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.06, 16);
+    wheelGeo.rotateZ(Math.PI / 2);
+    const wheel = new THREE.Mesh(wheelGeo, needleMat);
+    wheel.position.set(0.48, 0.55, 0);
+    wheel.castShadow = true;
+    smGroup.add(wheel);
 
-    // Gold spool pin & thread on top
-    g.fillStyle(0xf59e0b, 1.0);
-    g.fillRect(smX - 10, smY - 26, 5, 7);
-    g.fillStyle(0xd97706, 1.0);
-    g.strokeRect(smX - 10, smY - 26, 5, 7);
+    // Golden thread spool
+    const spoolGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.22, 10);
+    const spoolMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+    const spool = new THREE.Mesh(spoolGeo, spoolMat);
+    spool.position.set(-0.15, 0.9, 0);
+    smGroup.add(spool);
 
-    // 5. Golden Scissors Accessory (Center Left)
-    const scX = -8;
-    const scY = -12;
-    g.lineStyle(2.5, 0xf59e0b, 1.0); // Golden blades
-    g.lineBetween(scX - 8, scY - 6, scX + 8, scY + 6);
-    g.lineBetween(scX - 8, scY + 6, scX + 8, scY - 6);
-    // Gold finger rings
-    g.strokeCircle(scX - 10, scY - 7, 3.5);
-    g.strokeCircle(scX - 10, scY + 7, 3.5);
+    this.group.add(smGroup);
 
-    // 6. Colorful Spool of Thread (Left of scissors)
-    const spX = -w / 2 + 48;
-    const spY = -12;
-    g.fillStyle(0xf59e0b, 1.0); // Golden rims
-    g.fillCircle(spX, spY - 6, 5);
-    g.fillCircle(spX, spY + 6, 5);
-    // Vibrant Turquoise thread
-    g.fillStyle(0x06b6d4, 1.0);
-    g.fillRoundedRect(spX - 4, spY - 6, 8, 12, 2);
+    // 5. Golden Scissors Accessory (Center)
+    const scGeo = new THREE.BoxGeometry(0.4, 0.04, 0.15);
+    const scMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+    const scissors = new THREE.Mesh(scGeo, scMat);
+    scissors.position.set(-0.2, h + 0.22, 0.2);
+    scissors.rotation.y = Math.PI / 4;
+    this.group.add(scissors);
+
+    // 6. Turquoise Thread Spool (Left of scissors)
+    const thGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.3, 12);
+    const thMat = new THREE.MeshLambertMaterial({ color: 0x06b6d4 });
+    const thread = new THREE.Mesh(thGeo, thMat);
+    thread.position.set(-0.75, h + 0.35, 0.2);
+    this.group.add(thread);
 
     // 7. Stack of Folded Pastel T-Shirts (Far Left)
-    const stX = -w / 2 + 18;
-    const stY = -12;
-
-    // Pastel Mint T-Shirt (Bottom)
-    g.fillStyle(0xa7f3d0, 1.0);
-    g.fillRoundedRect(stX - 10, stY + 4, 20, 8, 2);
-    g.fillStyle(0x6ee7b7, 0.7);
-    g.fillRect(stX - 4, stY + 4, 8, 2);
-
-    // Pastel Peach T-Shirt (Middle)
-    g.fillStyle(0xfecdd3, 1.0);
-    g.fillRoundedRect(stX - 10, stY - 1, 20, 8, 2);
-    g.fillStyle(0xfda4af, 0.7);
-    g.fillRect(stX - 4, stY - 1, 8, 2);
-
-    // Pastel Sky Blue T-Shirt (Top)
-    g.fillStyle(0xbae6fd, 1.0);
-    g.fillRoundedRect(stX - 10, stY - 6, 20, 8, 2);
-    g.fillStyle(0x7dd3fc, 0.7);
-    g.fillRect(stX - 4, stY - 6, 8, 2);
+    const pastelColors = [0xa7f3d0, 0xfecdd3, 0xbae6fd]; // Mint, Peach, Sky Blue
+    pastelColors.forEach((col, idx) => {
+      const shirtGeo = new THREE.BoxGeometry(0.65, 0.12, 0.55);
+      const shirtMat = new THREE.MeshLambertMaterial({ color: col });
+      const shirt = new THREE.Mesh(shirtGeo, shirtMat);
+      shirt.position.set(-w * 0.32, h + 0.26 + idx * 0.12, -0.1);
+      shirt.castShadow = true;
+      this.group.add(shirt);
+    });
   }
 
   /**
-   * Affordable Upgrade Red Arrow Badge (↑)
-   * Iconic bouncing red circle (radius 18px) with bold white up-arrow anchored at top-left.
+   * Bouncing 3D Red Arrow Badge (↑)
+   * Anchored at top-left of the sewing station table.
    * Visible ONLY when playerCoins >= sewingStation.nextCost.
    */
-  createRedArrowBadge() {
-    const badgeX = -this.width / 2 + 4;
-    const badgeY = -this.height / 2 - 4;
+  buildRedArrowBadge() {
+    this.badgeGroup = new THREE.Group();
+    // Anchor at top-left corner
+    this.badgeGroup.position.set(-this.width / 2 - 0.2, this.height + 1.2, -this.depth / 2);
+    this.group.add(this.badgeGroup);
 
-    this.redArrowBadge = this.scene.add.container(badgeX, badgeY);
-    this.redArrowBadge.setDepth(20);
-    this.container.add(this.redArrowBadge);
+    // Red Cylinder Disc facing camera angle
+    const discGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.14, 24);
+    discGeo.rotateX(Math.PI / 3); // Tilt to face orthographic camera
+    const discMat = new THREE.MeshLambertMaterial({ color: 0xef4444 });
+    const disc = new THREE.Mesh(discGeo, discMat);
+    disc.castShadow = true;
+    this.badgeGroup.add(disc);
 
-    const g = this.scene.add.graphics();
-    // Ambient drop shadow
-    g.fillStyle(0x000000, 0.32);
-    g.fillCircle(1, 3, 19);
+    // White Up-Arrow (↑) symbol created with canvas texture for pixel-perfect sharpness
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 84px Fredoka, Nunito, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('↑', 64, 60);
 
-    // 3D Bottom Bevel
-    g.fillStyle(0xb91c1c, 1.0);
-    g.fillCircle(0, 2, 18);
-
-    // Vibrant Red Face
-    g.fillStyle(0xef4444, 1.0);
-    g.fillCircle(0, 0, 18);
-
-    // Top Gloss
-    g.fillStyle(0xffffff, 0.35);
-    g.fillCircle(0, -7, 7);
-    this.redArrowBadge.add(g);
-
-    // Bold White Up-Arrow
-    const arrow = this.scene.add.text(0, -1, '↑', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '25px',
-      fontStyle: 'bold',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    this.redArrowBadge.add(arrow);
-
-    // Pulsing Scale Animation (scale tween 1.0 to 1.16)
-    this.badgePulseTween = this.scene.tweens.add({
-      targets: this.redArrowBadge,
-      scale: 1.16,
-      duration: 450,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
+    const arrowTex = new THREE.CanvasTexture(canvas);
+    const arrowPlaneGeo = new THREE.PlaneGeometry(0.8, 0.8);
+    arrowPlaneGeo.rotateX(-Math.PI / 6);
+    const arrowPlaneMat = new THREE.MeshBasicMaterial({
+      map: arrowTex,
+      transparent: true,
+      side: THREE.DoubleSide
     });
+    const arrowPlane = new THREE.Mesh(arrowPlaneGeo, arrowPlaneMat);
+    arrowPlane.position.set(0, 0.05, 0.05);
+    this.badgeGroup.add(arrowPlane);
 
-    // Interactive hit area: clicking badge opens Station Upgrade Card
-    const hitArea = new Phaser.Geom.Circle(0, 0, 20);
-    this.redArrowBadge.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
-    this.redArrowBadge.on('pointerup', (pointer, localX, localY, event) => {
-      if (event) event.stopPropagation();
-      this.scene.events.emit('openStationUpgrade', { station: 'sewing' });
-    });
+    // Set interactive userData for raycasting
+    this.badgeGroup.userData = { type: 'station', stationId: 'sewing' };
+    disc.userData = { type: 'station', stationId: 'sewing' };
+    arrowPlane.userData = { type: 'station', stationId: 'sewing' };
+    this.clickTargets.push(disc);
+    this.clickTargets.push(arrowPlane);
 
     this.updateRedBadgeVisibility();
   }
 
   updateRedBadgeVisibility() {
     const canAfford = gameState.canUpgradeSewing();
-    this.redArrowBadge.setVisible(canAfford);
+    this.badgeGroup.visible = canAfford;
   }
 
-  createLevelBadge() {
-    this.badgeContainer = this.scene.add.container(0, this.height / 2 + 16);
-    this.container.add(this.badgeContainer);
-
-    this.badgeBg = this.scene.add.graphics();
-    this.badgeContainer.add(this.badgeBg);
-
-    this.levelText = this.scene.add.text(0, 0, '', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '15px',
-      fontStyle: 'bold',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    this.badgeContainer.add(this.levelText);
-
-    this.updateLevelBadge(gameState.sewingStation.level);
-  }
-
-  updateLevelBadge(level) {
-    const isStage1 = gameState.stage === 1;
-    const isMax = isStage1 && level >= 25;
-
-    this.badgeBg.clear();
-    const w = isMax ? 110 : 96;
-    const h = 28;
-
-    this.badgeBg.fillStyle(0x000000, 0.28);
-    this.badgeBg.fillRoundedRect(-w / 2, -h / 2 + 2, w, h, 9);
-
-    if (isMax) {
-      // Gold MAX LEVEL pill
-      this.badgeBg.fillStyle(0xf59e0b, 1.0);
-      this.badgeBg.fillRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
-      this.badgeBg.lineStyle(1.5, 0xfef08a, 1.0);
-      this.badgeBg.strokeRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
-      this.levelText.setText('MAX LV. 25');
-    } else {
-      // Green Level Pill
-      this.badgeBg.fillStyle(0x22c55e, 1.0);
-      this.badgeBg.fillRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
-      this.badgeBg.lineStyle(1.5, 0xffffff, 0.95);
-      this.badgeBg.strokeRoundedRect(-w / 2, -h / 2, w, h - 2, 9);
-
-      if (isStage1) {
-        this.levelText.setText(`Lv. ${level} / 25`);
-      } else {
-        this.levelText.setText(`Lv. ${level}`);
-      }
+  update(delta, time) {
+    // Pulsing bouncing scale animation on the Red Arrow Badge
+    if (this.badgeGroup && this.badgeGroup.visible) {
+      const pulse = 1.0 + Math.sin(time * 6.5) * 0.15;
+      this.badgeGroup.scale.set(pulse, pulse, pulse);
     }
   }
 
-  setupInteraction() {
-    const hitArea = new Phaser.Geom.Rectangle(-this.width / 2, -this.height / 2, this.width, this.height + 26);
-    this.container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
-
-    this.container.on('pointerdown', () => {
-      this.scene.tweens.add({
-        targets: this.container,
-        scale: 0.96,
-        duration: 60,
-        yoyo: true
-      });
-    });
-
-    this.container.on('pointerup', () => {
-      this.scene.events.emit('openStationUpgrade', { station: 'sewing' });
-    });
-  }
-
-  playUpgradeEffect() {
-    this.scene.tweens.add({
-      targets: this.container,
-      scaleX: 1.06,
-      scaleY: 1.06,
-      duration: 120,
-      yoyo: true
-    });
-
-    for (let i = 0; i < 6; i++) {
-      const p = this.scene.add.text(
-        this.x + Phaser.Math.Between(-35, 35),
-        this.y + Phaser.Math.Between(-20, 10),
-        '✨',
-        { fontSize: '20px' }
-      ).setOrigin(0.5).setDepth(25);
-
-      this.scene.tweens.add({
-        targets: p,
-        y: p.y - Phaser.Math.Between(30, 60),
-        alpha: 0,
-        duration: 600,
-        ease: 'Cubic.easeOut',
-        onComplete: () => p.destroy()
-      });
-    }
+  playUpgradePop() {
+    // Quick pop scale animation
+    const origY = this.group.position.y;
+    this.group.position.y = origY + 0.3;
+    setTimeout(() => {
+      this.group.position.y = origY;
+    }, 120);
   }
 }
 
 /**
- * Station 2: Jeans Table (Dotted Unlockable Station in Stage 2)
+ * Station 2: Jeans Table (Dotted Unlockable Bounding Box in Stage 2)
  */
 export class JeansStation {
-  constructor(scene, parentContainer) {
+  constructor(scene, parentGroup) {
     this.scene = scene;
     const cfg = GAME_CONFIG.layout.station2;
     this.x = cfg.x;
     this.y = cfg.y;
+    this.z = cfg.z;
     this.width = cfg.width;
     this.height = cfg.height;
+    this.depth = cfg.depth;
 
-    this.container = scene.add.container(this.x, this.y);
-    this.container.setDepth(8);
-    parentContainer.add(this.container);
+    this.group = new THREE.Group();
+    this.group.position.set(this.x, 0, this.z);
+    parentGroup.add(this.group);
 
+    this.clickTargets = [];
     this.render();
 
     gameState.on('stageRenovated', () => this.render());
     gameState.on('stationUnlocked', (data) => {
-      if (data.station === 'jeans') {
-        this.playBuildCelebration();
-        this.render();
-      }
+      if (data.station === 'jeans') this.render();
     });
   }
 
   render() {
-    this.container.removeAll(true);
+    // Clear old children
+    while (this.group.children.length > 0) {
+      this.group.remove(this.group.children[0]);
+    }
+    this.clickTargets = [];
 
+    // Only active in Stage 2
     if (gameState.stage < 2) {
-      this.container.setVisible(false);
+      this.group.visible = false;
       return;
     }
 
-    this.container.setVisible(true);
+    this.group.visible = true;
 
     if (!gameState.jeansStation.unlocked) {
-      this.drawDottedOutline();
+      this.buildDottedOutline();
     } else {
-      this.drawActiveTable();
+      this.buildActiveTable();
     }
   }
 
-  drawDottedOutline() {
+  buildDottedOutline() {
     const w = this.width;
     const h = this.height;
+    const d = this.depth;
 
-    const shadow = this.scene.add.graphics();
-    shadow.fillStyle(0x000000, 0.15);
-    shadow.fillRoundedRect(-w / 2 - 2, -h / 2 + 4, w + 4, h + 4, 12);
-    this.container.add(shadow);
-
-    const box = this.scene.add.graphics();
-    box.fillStyle(0x38bdf8, 0.08);
-    box.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
-    box.lineStyle(2.5, 0x0284c7, 0.85);
-    this.strokeDottedRect(box, -w / 2, -h / 2, w, h, 8);
-    this.container.add(box);
-
-    const icon = this.scene.add.text(0, -14, '👖', { fontSize: '32px' }).setOrigin(0.5);
-    this.container.add(icon);
-
-    const badge = this.scene.add.container(0, 18);
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x0f172a, 0.85);
-    bg.fillRoundedRect(-46, -13, 92, 26, 8);
-    bg.lineStyle(1.5, 0x38bdf8, 1);
-    bg.strokeRoundedRect(-46, -13, 92, 26, 8);
-    badge.add(bg);
-
-    const txt = this.scene.add.text(0, 0, '🔒 50 🪙', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '14px',
-      fontStyle: 'bold',
-      color: '#fef08a'
-    }).setOrigin(0.5);
-    badge.add(txt);
-    this.container.add(badge);
-
-    this.pulseTween = this.scene.tweens.add({
-      targets: this.container,
-      alpha: { from: 0.85, to: 1.0 },
-      scale: { from: 0.98, to: 1.02 },
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
+    // 3D Dotted Bounding Box
+    const boxGeo = new THREE.BoxGeometry(w, h, d);
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const lineMat = new THREE.LineDashedMaterial({
+      color: 0x38bdf8,
+      dashSize: 0.4,
+      gapSize: 0.25,
+      linewidth: 3
     });
+    const lineMesh = new THREE.LineSegments(edges, lineMat);
+    lineMesh.computeLineDistances();
+    lineMesh.position.y = h / 2;
+    this.group.add(lineMesh);
 
-    const hitArea = new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h);
-    this.container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
-    this.container.on('pointerup', () => {
-      this.scene.events.emit('openUnlockModal', {
-        stationId: 'jeans',
-        title: 'Unlock Jeans Station',
-        icon: '👖',
-        cost: GAME_CONFIG.layout.station2.unlockCost,
-        desc: 'Craft and sell designer denim jeans for higher profit!'
-      });
-    });
+    // Transparent interior click hit box
+    const hitGeo = new THREE.BoxGeometry(w, h, d);
+    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.05, color: 0x38bdf8 });
+    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    hitMesh.position.y = h / 2;
+    hitMesh.userData = { type: 'unlock', stationId: 'jeans', title: 'Unlock Jeans Station', icon: '👖', cost: 50 };
+    this.group.add(hitMesh);
+    this.clickTargets.push(hitMesh);
+
+    // Center 3D Lock Badge & Jeans Icon
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 70px Fredoka, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('👖', 64, 50);
+    ctx.font = 'bold 24px Fredoka, sans-serif';
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText('50 🪙', 64, 100);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const planeGeo = new THREE.PlaneGeometry(1.6, 1.6);
+    planeGeo.rotateX(-Math.PI / 4);
+    const planeMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
+    const iconPlane = new THREE.Mesh(planeGeo, planeMat);
+    iconPlane.position.set(0, h + 0.6, 0);
+    iconPlane.userData = hitMesh.userData;
+    this.group.add(iconPlane);
+    this.clickTargets.push(iconPlane);
   }
 
-  drawActiveTable() {
-    if (this.pulseTween) {
-      this.pulseTween.stop();
-      this.pulseTween = null;
-      this.container.setScale(1.0);
-      this.container.setAlpha(1.0);
-    }
-
+  buildActiveTable() {
     const w = this.width;
     const h = this.height;
-    const g = this.scene.add.graphics();
-    this.container.add(g);
+    const d = this.depth;
 
-    // 1. Soft 2.5D Drop Shadow
-    g.fillStyle(0x000000, 0.25);
-    g.fillEllipse(0, h / 2 + 6, w * 1.04, 26);
+    const bodyGeo = new THREE.BoxGeometry(w, h, d);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x1e3a8a }); // Dark Indigo
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = h / 2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+    body.userData = { type: 'station', stationId: 'jeans' };
+    this.group.add(body);
+    this.clickTargets.push(body);
 
-    // 2. Heavy Dark Indigo Table Base
-    g.fillStyle(0x1e3a8a, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
-    g.fillStyle(0x2563eb, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, 12, { tl: 10, tr: 10, bl: 0, br: 0 });
+    // Tabletop
+    const topGeo = new THREE.BoxGeometry(w + 0.2, 0.18, d + 0.2);
+    const topMat = new THREE.MeshLambertMaterial({ color: 0x2563eb });
+    const top = new THREE.Mesh(topGeo, topMat);
+    top.position.y = h + 0.09;
+    top.castShadow = true;
+    this.group.add(top);
 
-    // 3. Denim Work Mat with gold stitching
-    const matW = w * 0.75;
-    const matH = h * 0.68;
-    g.fillStyle(0x1d4ed8, 1.0);
-    g.fillRoundedRect(-matW / 2, -matH / 2 + 4, matW, matH, 6);
-    g.lineStyle(1.5, 0xf59e0b, 0.8);
-    g.strokeRoundedRect(-matW / 2 + 2, -matH / 2 + 6, matW - 4, matH - 4, 4);
-
-    // Denim roll & folded jeans stack
-    g.fillStyle(0x172554, 1.0);
-    g.fillRoundedRect(-w / 2 + 14, -14, 14, 26, 3);
-    g.fillStyle(0x2563eb, 1.0);
-    g.fillRoundedRect(-14, 4, 22, 10, 2);
-    g.fillStyle(0x1d4ed8, 1.0);
-    g.fillRoundedRect(-14, -2, 22, 10, 2);
-    g.fillStyle(0xf59e0b, 1.0);
-    g.fillRect(-12, 1, 18, 2);
-
-    // Active Level Pill
-    const badge = this.scene.add.container(0, h / 2 + 14);
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x000000, 0.28);
-    bg.fillRoundedRect(-36, -11, 72, 24, 8);
-    bg.fillStyle(0x2563eb, 1.0);
-    bg.fillRoundedRect(-38, -13, 76, 26, 8);
-    bg.lineStyle(1.5, 0xffffff, 0.95);
-    bg.strokeRoundedRect(-38, -13, 76, 26, 8);
-    badge.add(bg);
-
-    const txt = this.scene.add.text(0, 0, 'Lv. 1', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '14px',
-      fontStyle: 'bold',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    badge.add(txt);
-    this.container.add(badge);
-
-    const hitArea = new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h + 24);
-    this.container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
-  }
-
-  playBuildCelebration() {
-    this.scene.tweens.add({
-      targets: this.container,
-      scaleX: 1.15,
-      scaleY: 1.15,
-      duration: 150,
-      yoyo: true,
-      ease: 'Back.easeOut'
-    });
-
-    for (let i = 0; i < 10; i++) {
-      const puff = this.scene.add.graphics();
-      puff.setDepth(25);
-      puff.setPosition(this.x + Phaser.Math.Between(-30, 30), this.y + Phaser.Math.Between(-20, 20));
-      puff.fillStyle(0xf1f5f9, 0.8);
-      puff.fillCircle(0, 0, Phaser.Math.Between(8, 14));
-
-      this.scene.tweens.add({
-        targets: puff,
-        y: puff.y - Phaser.Math.Between(20, 50),
-        alpha: 0,
-        scale: 1.8,
-        duration: 500,
-        ease: 'Quad.easeOut',
-        onComplete: () => puff.destroy()
-      });
-    }
-  }
-
-  strokeDottedRect(g, x, y, w, h, dash = 6) {
-    const drawDashLine = (x1, y1, x2, y2) => {
-      const dist = Phaser.Math.Distance.Between(x1, y1, x2, y2);
-      const angle = Phaser.Math.Angle.Between(x1, y1, x2, y2);
-      const cos = Math.cos(angle);
-      const sin = Math.sin(angle);
-      let cur = 0;
-      while (cur < dist) {
-        const len = Math.min(dash, dist - cur);
-        g.lineBetween(x1 + cos * cur, y1 + sin * cur, x1 + cos * (cur + len), y1 + sin * (cur + len));
-        cur += dash * 2;
-      }
-    };
-    drawDashLine(x, y, x + w, y);
-    drawDashLine(x + w, y, x + w, y + h);
-    drawDashLine(x + w, y + h, x, y + h);
-    drawDashLine(x, y + h, x, y);
+    // Folded Jeans on table
+    const jeanGeo = new THREE.BoxGeometry(0.8, 0.15, 0.6);
+    const jeanMat = new THREE.MeshLambertMaterial({ color: 0x1d4ed8 });
+    const j1 = new THREE.Mesh(jeanGeo, jeanMat);
+    j1.position.set(-0.5, h + 0.25, 0);
+    const j2 = new THREE.Mesh(jeanGeo, jeanMat);
+    j2.position.set(-0.5, h + 0.38, 0);
+    this.group.add(j1);
+    this.group.add(j2);
   }
 }
 
 /**
- * Station 3: Hats Rack (Dotted Unlockable Station in Stage 2)
+ * Station 3: Hats Rack (Dotted Unlockable Station in Stage 2 after Jeans Station)
  */
 export class HatsStation {
-  constructor(scene, parentContainer) {
+  constructor(scene, parentGroup) {
     this.scene = scene;
     const cfg = GAME_CONFIG.layout.station3;
     this.x = cfg.x;
     this.y = cfg.y;
+    this.z = cfg.z;
     this.width = cfg.width;
     this.height = cfg.height;
+    this.depth = cfg.depth;
 
-    this.container = scene.add.container(this.x, this.y);
-    this.container.setDepth(8);
-    parentContainer.add(this.container);
+    this.group = new THREE.Group();
+    this.group.position.set(this.x, 0, this.z);
+    parentGroup.add(this.group);
 
+    this.clickTargets = [];
     this.render();
 
     gameState.on('stageRenovated', () => this.render());
@@ -676,299 +480,171 @@ export class HatsStation {
   }
 
   render() {
-    this.container.removeAll(true);
+    while (this.group.children.length > 0) {
+      this.group.remove(this.group.children[0]);
+    }
+    this.clickTargets = [];
 
+    // Visible only in Stage 2 and after Jeans station is unlocked!
     if (gameState.stage < 2 || !gameState.jeansStation.unlocked) {
-      this.container.setVisible(false);
+      this.group.visible = false;
       return;
     }
 
-    this.container.setVisible(true);
+    this.group.visible = true;
 
     if (!gameState.hatsStation.unlocked) {
-      this.drawDottedOutline();
+      this.buildDottedOutline();
     } else {
-      this.drawActiveRack();
+      this.buildActiveRack();
     }
   }
 
-  drawDottedOutline() {
+  buildDottedOutline() {
     const w = this.width;
     const h = this.height;
+    const d = this.depth;
 
-    const shadow = this.scene.add.graphics();
-    shadow.fillStyle(0x000000, 0.15);
-    shadow.fillRoundedRect(-w / 2 - 2, -h / 2 + 4, w + 4, h + 4, 12);
-    this.container.add(shadow);
-
-    const box = this.scene.add.graphics();
-    box.fillStyle(0xa855f7, 0.08);
-    box.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
-    box.lineStyle(2.5, 0x9333ea, 0.85);
-
-    const dash = 6;
-    const drawDashLine = (x1, y1, x2, y2) => {
-      const dist = Phaser.Math.Distance.Between(x1, y1, x2, y2);
-      const angle = Phaser.Math.Angle.Between(x1, y1, x2, y2);
-      const cos = Math.cos(angle);
-      const sin = Math.sin(angle);
-      let cur = 0;
-      while (cur < dist) {
-        const len = Math.min(dash, dist - cur);
-        box.lineBetween(x1 + cos * cur, y1 + sin * cur, x1 + cos * (cur + len), y1 + sin * (cur + len));
-        cur += dash * 2;
-      }
-    };
-    drawDashLine(-w / 2, -h / 2, w / 2, -h / 2);
-    drawDashLine(w / 2, -h / 2, w / 2, h / 2);
-    drawDashLine(w / 2, h / 2, -w / 2, h / 2);
-    drawDashLine(-w / 2, h / 2, -w / 2, -h / 2);
-    this.container.add(box);
-
-    const icon = this.scene.add.text(0, -14, '🧢', { fontSize: '32px' }).setOrigin(0.5);
-    this.container.add(icon);
-
-    const badge = this.scene.add.container(0, 18);
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x0f172a, 0.85);
-    bg.fillRoundedRect(-50, -13, 100, 26, 8);
-    bg.lineStyle(1.5, 0xa855f7, 1);
-    bg.strokeRoundedRect(-50, -13, 100, 26, 8);
-    badge.add(bg);
-
-    const txt = this.scene.add.text(0, 0, '🔒 100 🪙', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '14px',
-      fontStyle: 'bold',
-      color: '#fef08a'
-    }).setOrigin(0.5);
-    badge.add(txt);
-    this.container.add(badge);
-
-    this.pulseTween = this.scene.tweens.add({
-      targets: this.container,
-      alpha: { from: 0.85, to: 1.0 },
-      scale: { from: 0.98, to: 1.02 },
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
+    const boxGeo = new THREE.BoxGeometry(w, h, d);
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const lineMat = new THREE.LineDashedMaterial({
+      color: 0xa855f7,
+      dashSize: 0.4,
+      gapSize: 0.25,
+      linewidth: 3
     });
+    const lineMesh = new THREE.LineSegments(edges, lineMat);
+    lineMesh.computeLineDistances();
+    lineMesh.position.y = h / 2;
+    this.group.add(lineMesh);
 
-    const hitArea = new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h);
-    this.container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
-    this.container.on('pointerup', () => {
-      this.scene.events.emit('openUnlockModal', {
-        stationId: 'hats',
-        title: 'Unlock Hats Rack',
-        icon: '🧢',
-        cost: GAME_CONFIG.layout.station3.unlockCost,
-        desc: 'Craft trendy designer hats for premium boutique profits!'
-      });
-    });
+    const hitGeo = new THREE.BoxGeometry(w, h, d);
+    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.05, color: 0xa855f7 });
+    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    hitMesh.position.y = h / 2;
+    hitMesh.userData = { type: 'unlock', stationId: 'hats', title: 'Unlock Hats Rack', icon: '🧢', cost: 100 };
+    this.group.add(hitMesh);
+    this.clickTargets.push(hitMesh);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 70px Fredoka, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🧢', 64, 50);
+    ctx.font = 'bold 24px Fredoka, sans-serif';
+    ctx.fillStyle = '#fef08a';
+    ctx.fillText('100 🪙', 64, 100);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    const planeGeo = new THREE.PlaneGeometry(1.6, 1.6);
+    planeGeo.rotateX(-Math.PI / 4);
+    const planeMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
+    const iconPlane = new THREE.Mesh(planeGeo, planeMat);
+    iconPlane.position.set(0, h + 0.6, 0);
+    iconPlane.userData = hitMesh.userData;
+    this.group.add(iconPlane);
+    this.clickTargets.push(iconPlane);
   }
 
-  drawActiveRack() {
-    if (this.pulseTween) {
-      this.pulseTween.stop();
-      this.pulseTween = null;
-      this.container.setScale(1.0);
-      this.container.setAlpha(1.0);
-    }
-
+  buildActiveRack() {
     const w = this.width;
     const h = this.height;
-    const g = this.scene.add.graphics();
-    this.container.add(g);
 
-    g.fillStyle(0x000000, 0.25);
-    g.fillEllipse(0, h / 2 + 4, w * 0.95, 24);
+    // Mahogany Wooden Base
+    const standGeo = new THREE.CylinderGeometry(0.18, 0.22, h, 12);
+    const standMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
+    const stand = new THREE.Mesh(standGeo, standMat);
+    stand.position.y = h / 2;
+    stand.castShadow = true;
+    this.group.add(stand);
 
-    g.fillStyle(0x78350f, 1.0);
-    g.fillRoundedRect(-w / 2 + 10, -h / 2, w - 20, h, 10);
-    g.fillStyle(0x92400e, 1.0);
-    g.fillRoundedRect(-w / 2 + 10, -h / 2, w - 20, 12, { tl: 10, tr: 10, bl: 0, br: 0 });
-
-    const hats = [
-      { x: -w / 2 + 40, icon: '🧢' },
-      { x: 0, icon: '🎩' },
-      { x: w / 2 - 40, icon: '👒' }
-    ];
-
-    hats.forEach(item => {
-      g.fillStyle(0xd97706, 1.0);
-      g.fillCircle(item.x, 2, 8);
-      const hatTxt = this.scene.add.text(item.x, -6, item.icon, { fontSize: '24px' }).setOrigin(0.5);
-      this.container.add(hatTxt);
+    // Pegs with colorful hats
+    const hatColors = [0xef4444, 0x3b82f6, 0x10b981];
+    hatColors.forEach((col, i) => {
+      const hatGeo = new THREE.SphereGeometry(0.35, 12, 12);
+      const hatMat = new THREE.MeshLambertMaterial({ color: col });
+      const hat = new THREE.Mesh(hatGeo, hatMat);
+      hat.position.set((i - 1) * 0.7, h + 0.2, 0);
+      hat.castShadow = true;
+      this.group.add(hat);
     });
-
-    const badge = this.scene.add.container(0, h / 2 + 14);
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x000000, 0.28);
-    bg.fillRoundedRect(-36, -11, 72, 24, 8);
-    bg.fillStyle(0x9333ea, 1.0);
-    bg.fillRoundedRect(-38, -13, 76, 26, 8);
-    bg.lineStyle(1.5, 0xffffff, 0.95);
-    bg.strokeRoundedRect(-38, -13, 76, 26, 8);
-    badge.add(bg);
-
-    const txt = this.scene.add.text(0, 0, 'Lv. 1', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '14px',
-      fontStyle: 'bold',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-    badge.add(txt);
-    this.container.add(badge);
-
-    const hitArea = new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h + 24);
-    this.container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
   }
 }
 
 /**
- * Counter Station (Top Checkout & Service Desk)
+ * 3D Floating Gold Coin Spawner
  */
-export class CounterStation {
-  constructor(scene, parentContainer) {
+export class FloatingCoinSpawner {
+  constructor(scene, parentGroup) {
     this.scene = scene;
-    const cfg = GAME_CONFIG.layout.counter;
-    this.x = cfg.x;
-    this.y = cfg.y;
-    this.width = cfg.width;
-    this.height = cfg.height;
-
-    this.container = scene.add.container(this.x, this.y);
-    this.container.setDepth(7);
-    parentContainer.add(this.container);
-
-    this.drawCounter();
+    this.group = parentGroup;
+    this.coins = [];
   }
 
-  drawCounter() {
-    const w = this.width;
-    const h = this.height;
-    const g = this.scene.add.graphics();
-    this.container.add(g);
+  spawn(startX, startY, startZ, amount) {
+    const coinCount = Math.min(6, Math.max(3, Math.ceil(amount / 2)));
+    const coinGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.08, 16);
+    coinGeo.rotateX(Math.PI / 4);
+    const coinMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
 
-    g.fillStyle(0x000000, 0.25);
-    g.fillEllipse(0, h / 2 + 10, w * 1.04, 28);
+    for (let i = 0; i < coinCount; i++) {
+      setTimeout(() => {
+        const coin = new THREE.Mesh(coinGeo, coinMat);
+        coin.position.set(
+          startX + (Math.random() - 0.5) * 0.6,
+          startY + 0.8,
+          startZ + (Math.random() - 0.5) * 0.6
+        );
+        this.group.add(coin);
 
-    g.fillStyle(GAME_CONFIG.colors.counterBevel, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2 + 6, w, h - 2, 24);
+        const targetX = 0;
+        const targetY = 16;
+        const targetZ = 12;
 
-    g.fillStyle(GAME_CONFIG.colors.counterWood, 1.0);
-    g.fillRoundedRect(-w / 2, -h / 2, w, h - 4, 24);
-
-    g.fillStyle(GAME_CONFIG.colors.counterTrim, 0.65);
-    for (let lx = -w / 2 + 25; lx < w / 2 - 20; lx += 18) {
-      g.fillRect(lx, -h / 2 + 6, 6, h - 16);
+        this.coins.push({
+          mesh: coin,
+          startX: coin.position.x,
+          startY: coin.position.y,
+          startZ: coin.position.z,
+          targetX,
+          targetY,
+          targetZ,
+          life: 0,
+          maxLife: 0.65,
+          isLast: i === coinCount - 1,
+          amount
+        });
+      }, i * 70);
     }
-
-    g.fillStyle(GAME_CONFIG.colors.counterTop, 1.0);
-    g.fillRoundedRect(-w / 2 - 3, -h / 2 - 6, w + 6, 22, 11);
-
-    g.fillStyle(0xffffff, 0.28);
-    g.fillRoundedRect(-w / 2 + 10, -h / 2 - 5, w - 20, 3, 2);
-
-    const caseW = 76;
-    const caseH = 28;
-    g.fillStyle(0x0f172a, 0.85);
-    g.fillRoundedRect(-caseW / 2, 2, caseW, caseH, 5);
-    g.fillStyle(0x38bdf8, 0.25);
-    g.fillRoundedRect(-caseW / 2 + 2, 4, caseW - 4, caseH - 4, 3);
-
-    g.fillStyle(0xef4444, 1.0);
-    g.fillRoundedRect(-caseW / 2 + 8, 8, 14, 11, 2);
-    g.fillStyle(0x3b82f6, 1.0);
-    g.fillRoundedRect(-caseW / 2 + 28, 8, 14, 11, 2);
-    g.fillStyle(0xf59e0b, 1.0);
-    g.fillRoundedRect(-caseW / 2 + 48, 8, 14, 11, 2);
-
-    this.drawPOSRegister(g, -60, -h / 2 - 2);
-    this.drawPOSRegister(g, 60, -h / 2 - 2);
   }
 
-  drawPOSRegister(g, x, y) {
-    g.fillStyle(0x334155, 1.0);
-    g.fillRect(x - 3, y, 6, 6);
-    g.fillStyle(0x0f172a, 1.0);
-    g.fillRoundedRect(x - 10, y - 14, 20, 14, 3);
-    g.fillStyle(0x10b981, 1.0);
-    g.fillRoundedRect(x - 8, y - 12, 16, 10, 2);
-    g.fillStyle(0xffffff, 0.8);
-    g.fillRect(x - 6, y - 8, 12, 2);
-  }
-}
+  update(delta) {
+    for (let i = this.coins.length - 1; i >= 0; i--) {
+      const c = this.coins[i];
+      c.life += delta;
+      const progress = Math.min(1.0, c.life / c.maxLife);
 
-/**
- * Spawns 3D gold coin particles that arch up to the top coin pill
- */
-export function spawnFloatingCoins(scene, startX, startY, amount, targetX = 360, targetY = 70) {
-  const coinCount = Math.min(8, Math.max(3, Math.ceil(amount / 2)));
+      // Arc interpolation
+      const currentX = c.startX + (c.targetX - c.startX) * progress;
+      const currentZ = c.startZ + (c.targetZ - c.startZ) * progress;
+      const arcHeight = Math.sin(progress * Math.PI) * 4.0;
+      const currentY = c.startY + (c.targetY - c.startY) * progress + arcHeight;
 
-  for (let i = 0; i < coinCount; i++) {
-    const delay = i * 65;
+      c.mesh.position.set(currentX, currentY, currentZ);
+      c.mesh.rotation.y += delta * 12;
 
-    scene.time.delayedCall(delay, () => {
-      const coin = scene.add.container(
-        startX + Phaser.Math.Between(-14, 14),
-        startY + Phaser.Math.Between(-10, 10)
-      );
-      coin.setDepth(60);
+      if (c.life >= c.maxLife) {
+        this.group.remove(c.mesh);
+        this.coins.splice(i, 1);
 
-      const cg = scene.add.graphics();
-      cg.fillStyle(0x000000, 0.25);
-      cg.fillCircle(1, 2, 12);
-      cg.fillStyle(0xf59e0b, 1.0);
-      cg.fillCircle(0, 0, 11);
-      cg.fillStyle(0xfbbf24, 1.0);
-      cg.fillCircle(0, 0, 9);
-      cg.lineStyle(1.5, 0xd97706, 1);
-      cg.strokeCircle(0, 0, 7);
-
-      const star = scene.add.text(0, 0, '★', {
-        fontFamily: FONT_FAMILY,
-        fontSize: '11px',
-        color: '#b45309'
-      }).setOrigin(0.5);
-      coin.add(cg);
-      coin.add(star);
-
-      const midX = (startX + targetX) / 2 + Phaser.Math.Between(-30, 30);
-      const midY = Math.min(startY, targetY) - Phaser.Math.Between(50, 100);
-
-      scene.tweens.add({
-        targets: coin,
-        scale: { from: 0.4, to: 1.2 },
-        duration: 100,
-        ease: 'Back.easeOut'
-      });
-
-      scene.tweens.add({
-        targets: coin,
-        x: midX,
-        y: midY,
-        duration: 240,
-        ease: 'Quad.easeOut',
-        onComplete: () => {
-          scene.tweens.add({
-            targets: coin,
-            x: targetX,
-            y: targetY,
-            scale: 0.6,
-            duration: 260,
-            ease: 'Quad.easeIn',
-            onComplete: () => {
-              coin.destroy();
-              if (i === coinCount - 1) {
-                gameState.addCoins(amount);
-                scene.events.emit('coinPillPunch');
-              }
-            }
-          });
+        if (c.isLast) {
+          gameState.addCoins(c.amount);
         }
-      });
-    });
+      }
+    }
   }
 }

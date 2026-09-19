@@ -1,50 +1,49 @@
 /**
- * Fitventure - Characters & AI Manager
- * Avatars with 2.5D translucent dark oval drop shadows,
- * Master Tailor, Raymond assistant, Cashier Emma, Lucas fast worker,
- * Shoppers ordering T-shirts, Jeans, and Hats, procedural waddle animations.
+ * Fitventure - 3D Characters & AI Manager
+ * Tech Stack: Three.js r128
+ * Features:
+ * 1. 3D Low-poly characters (Sphere head, cylinder body, worker caps).
+ * 2. Natural 3D waddle animation (Z-tilt and vertical bounce while moving).
+ * 3. Customer queueing, ordering logic, and worker delivery cycle.
+ * 4. Multi-product orders: T-Shirts, Jeans, Hats.
  */
 
-import { GAME_CONFIG, FONT_FAMILY, gameState } from './config.js';
-import { RadialGauge } from './stations.js';
+import { GAME_CONFIG, gameState } from './config.js';
+import { RadialProgressRing } from './stations.js';
 
 /**
- * Procedural 2.5D Cylindrical Avatar Generator with 2.5D Drop Shadows
+ * Creates a low-poly 3D character mesh group
  */
-export function createAvatarContainer(scene, { isWorker = false, role = 'shopper', colorScheme = null }) {
-  const container = scene.add.container(0, 0);
+export function create3DCharacterMesh({ isWorker = false, role = 'shopper', colorScheme = null }) {
+  const group = new THREE.Group();
 
-  // 1. Soft Translucent Dark Oval 2.5D Drop Shadow directly under feet
-  const shadow = scene.add.graphics();
-  shadow.fillStyle(0x000000, 0.25);
-  shadow.fillEllipse(0, 22, 38, 14);
-  container.add(shadow);
-  container.shadow = shadow;
+  // 1. Soft Ground Contact Shadow Disc
+  const shadowGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.02, 16);
+  const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 });
+  const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+  shadow.position.y = 0.01;
+  group.add(shadow);
+  group.shadowMesh = shadow;
 
-  // 2. Avatar Visual Container (Wobble, squash, stretch, bounce)
-  const bodyVisual = scene.add.container(0, 0);
-  container.add(bodyVisual);
-  container.bodyVisual = bodyVisual;
+  // 2. Avatar Visual Container (Handles waddle Z-tilt and vertical bounce)
+  const visual = new THREE.Group();
+  group.add(visual);
+  group.visual = visual;
 
-  const g = scene.add.graphics();
-  bodyVisual.add(g);
+  // 3. Shoes / Feet
+  const shoeGeo = new THREE.BoxGeometry(0.32, 0.22, 0.45);
+  const shoeMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+  const leftShoe = new THREE.Mesh(shoeGeo, shoeMat);
+  leftShoe.position.set(-0.25, 0.12, 0.05);
+  leftShoe.castShadow = true;
+  visual.add(leftShoe);
 
-  // 3. Shoes / Sneakers
-  const hasSneakers = isWorker && (gameState.isUpgradePurchased('comfy_sneakers') || gameState.isUpgradePurchased('running_shoes'));
-  if (hasSneakers) {
-    g.fillStyle(0xffffff, 1.0);
-    g.fillRoundedRect(-13, 18, 10, 6, 2);
-    g.fillRoundedRect(3, 18, 10, 6, 2);
-    g.fillStyle(0xef4444, 1.0);
-    g.fillRoundedRect(-12, 15, 8, 6, 2);
-    g.fillRoundedRect(4, 15, 8, 6, 2);
-  } else {
-    g.fillStyle(0x1e293b, 1.0);
-    g.fillRoundedRect(-12, 16, 9, 7, 2);
-    g.fillRoundedRect(3, 16, 9, 7, 2);
-  }
+  const rightShoe = new THREE.Mesh(shoeGeo, shoeMat);
+  rightShoe.position.set(0.25, 0.12, 0.05);
+  rightShoe.castShadow = true;
+  visual.add(rightShoe);
 
-  // 4. Cylindrical Body / Torso
+  // 4. Cylindrical Torso / Body
   let shirtColor = 0x3b82f6;
   if (isWorker) {
     if (role === 'tailor') shirtColor = 0x1e293b;
@@ -55,212 +54,104 @@ export function createAvatarContainer(scene, { isWorker = false, role = 'shopper
     shirtColor = colorScheme ? colorScheme.shirt : 0x3b82f6;
   }
 
-  // Torso base
-  g.fillStyle(shirtColor, 1.0);
-  g.fillRoundedRect(-14, -5, 28, 25, 5);
+  const torsoGeo = new THREE.CylinderGeometry(0.48, 0.54, 1.0, 16);
+  const torsoMat = new THREE.MeshLambertMaterial({ color: shirtColor });
+  const torso = new THREE.Mesh(torsoGeo, torsoMat);
+  torso.position.y = 0.72;
+  torso.castShadow = true;
+  torso.receiveShadow = true;
+  visual.add(torso);
 
   if (isWorker) {
     // Tailor Apron
-    g.fillStyle(0xf8fafc, 1.0);
-    g.fillRoundedRect(-10, -1, 20, 21, 3);
+    const apronGeo = new THREE.BoxGeometry(0.65, 0.85, 0.12);
+    const apronMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+    const apron = new THREE.Mesh(apronGeo, apronMat);
+    apron.position.set(0, 0.72, 0.48);
+    apron.castShadow = true;
+    visual.add(apron);
 
-    if (role === 'tailor' || role === 'lucas') {
-      // Measuring tape
-      g.fillStyle(0xf59e0b, 1.0);
-      g.fillRect(-8, 3, 16, 3);
-      // Apron shears
-      g.fillStyle(0x94a3b8, 1.0);
-      g.fillRect(-2, 8, 4, 5);
-    } else if (role === 'raymond') {
-      // Bowtie
-      g.fillStyle(0x0f766e, 1.0);
-      g.fillCircle(0, 2, 2.5);
-    } else if (role === 'emma') {
-      // Cashier badge
-      g.fillStyle(0xf59e0b, 1.0);
-      g.fillCircle(-4, 4, 2.5);
-    }
-  } else {
-    // Shopper collar
-    g.fillStyle(0xffffff, 0.45);
-    g.fillRect(-2, -3, 4, 12);
+    // Measuring Tape
+    const tapeGeo = new THREE.BoxGeometry(0.5, 0.1, 0.14);
+    const tapeMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+    const tape = new THREE.Mesh(tapeGeo, tapeMat);
+    tape.position.set(0, 0.95, 0.5);
+    visual.add(tape);
   }
 
   // Arms
-  g.fillStyle(shirtColor, 1.0);
-  g.fillCircle(-14, 5, 5);
-  g.fillCircle(14, 5, 5);
-  g.fillStyle(GAME_CONFIG.colors.avatarSkin, 1.0);
-  g.fillCircle(-14, 10, 3.5);
-  g.fillCircle(14, 10, 3.5);
+  const armGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.6, 8);
+  const armMat = new THREE.MeshLambertMaterial({ color: shirtColor });
+  const leftArm = new THREE.Mesh(armGeo, armMat);
+  leftArm.position.set(-0.6, 0.7, 0);
+  leftArm.rotation.z = Math.PI / 10;
+  visual.add(leftArm);
 
-  // 5. Head
-  g.fillStyle(GAME_CONFIG.colors.avatarSkin, 1.0);
-  g.fillCircle(0, -16, 14);
+  const rightArm = new THREE.Mesh(armGeo, armMat);
+  rightArm.position.set(0.6, 0.7, 0);
+  rightArm.rotation.z = -Math.PI / 10;
+  visual.add(rightArm);
 
-  // Eyes & Smile
-  g.fillStyle(0x0f172a, 1.0);
-  g.fillCircle(-4, -15, 2);
-  g.fillCircle(4, -15, 2);
-  g.fillStyle(0xffffff, 0.9);
-  g.fillCircle(-5, -16, 1);
-  g.fillCircle(3, -16, 1);
+  // 5. Head (Sphere)
+  const headGeo = new THREE.SphereGeometry(0.48, 16, 16);
+  const headMat = new THREE.MeshLambertMaterial({ color: GAME_CONFIG.colors.avatarSkin });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 1.6;
+  head.castShadow = true;
+  visual.add(head);
 
-  g.lineStyle(2, 0x0f172a, 0.85);
-  g.beginPath();
-  g.arc(0, -12, 4.5, 0.2 * Math.PI, 0.8 * Math.PI, false);
-  g.strokePath();
+  // Eyes
+  const eyeGeo = new THREE.SphereGeometry(0.06, 8, 8);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.16, 1.64, 0.44);
+  visual.add(leftEye);
 
-  // 6. Headwear / Hair
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.16, 1.64, 0.44);
+  visual.add(rightEye);
+
+  // 6. Headwear / Cap
   if (isWorker) {
-    if (role === 'tailor') {
-      // Red baseball cap
-      g.fillStyle(GAME_CONFIG.colors.workerCap, 1.0);
-      g.beginPath();
-      g.arc(0, -19, 14, Math.PI, 0, false);
-      g.closePath();
-      g.fillPath();
-      g.fillStyle(0xb91c1c, 1.0);
-      g.fillRoundedRect(-12, -20, 24, 6, 2);
-      g.fillStyle(0xffffff, 1.0);
-      g.fillCircle(0, -33, 2.5);
-    } else if (role === 'raymond') {
-      // Emerald baseball cap
-      g.fillStyle(GAME_CONFIG.colors.raymondCap, 1.0);
-      g.beginPath();
-      g.arc(0, -19, 14, Math.PI, 0, false);
-      g.closePath();
-      g.fillPath();
-      g.fillStyle(0x047857, 1.0);
-      g.fillRoundedRect(-12, -20, 24, 6, 2);
-      g.fillStyle(0xffffff, 1.0);
-      g.fillCircle(0, -33, 2.5);
-    } else if (role === 'lucas') {
-      // Purple master tailor cap
-      g.fillStyle(GAME_CONFIG.colors.lucasCap, 1.0);
-      g.beginPath();
-      g.arc(0, -19, 14, Math.PI, 0, false);
-      g.closePath();
-      g.fillPath();
-      g.fillStyle(0x6d28d9, 1.0);
-      g.fillRoundedRect(-12, -20, 24, 6, 2);
-      g.fillStyle(0xfef08a, 1.0);
-      g.fillCircle(0, -33, 2.5);
-    } else if (role === 'emma') {
-      // Emma stylish blonde hair buns
-      g.fillStyle(0xf59e0b, 1.0);
-      g.fillCircle(-10, -18, 6);
-      g.fillCircle(10, -18, 6);
-      g.beginPath();
-      g.arc(0, -19, 14, Math.PI, 0, false);
-      g.closePath();
-      g.fillPath();
-    }
+    let capColor = 0xef4444;
+    if (role === 'raymond') capColor = 0x10b981;
+    else if (role === 'lucas') capColor = 0x8b5cf6;
+    else if (role === 'emma') capColor = 0xf59e0b;
+
+    // Cap Dome
+    const capGeo = new THREE.SphereGeometry(0.5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const capMat = new THREE.MeshLambertMaterial({ color: capColor });
+    const cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.y = 1.62;
+    cap.castShadow = true;
+    visual.add(cap);
+
+    // Visor Brim
+    const visorGeo = new THREE.BoxGeometry(0.65, 0.08, 0.35);
+    const visorMat = new THREE.MeshLambertMaterial({ color: capColor });
+    const visor = new THREE.Mesh(visorGeo, visorMat);
+    visor.position.set(0, 1.7, 0.55);
+    visual.add(visor);
   } else {
     // Shopper Hair
     const hairColor = colorScheme ? colorScheme.hair : 0x1e293b;
-    g.fillStyle(hairColor, 1.0);
-    g.beginPath();
-    g.arc(0, -19, 15, Math.PI, 0, false);
-    g.closePath();
-    g.fillPath();
-    g.fillCircle(-8, -17, 5);
-    g.fillCircle(8, -17, 5);
+    const hairGeo = new THREE.SphereGeometry(0.51, 14, 14, 0, Math.PI * 2, 0, Math.PI * 0.45);
+    const hairMat = new THREE.MeshLambertMaterial({ color: hairColor });
+    const hair = new THREE.Mesh(hairGeo, hairMat);
+    hair.position.y = 1.64;
+    visual.add(hair);
   }
 
-  container.graphics = g;
-
-  // Waddle animation functions
-  container.waddleTweens = [];
-  container.isWaddling = false;
-  container.idleTween = null;
-
-  container.startWaddle = () => {
-    if (container.isWaddling) return;
-    container.isWaddling = true;
-
-    if (container.idleTween) {
-      container.idleTween.stop();
-      container.idleTween = null;
-    }
-
-    const duration = Math.round(115 / (isWorker ? gameState.getWorkerSpeedMultiplier() : 1.0));
-
-    const wobbleTween = scene.tweens.add({
-      targets: bodyVisual,
-      angle: { from: -5, to: 5 },
-      duration: duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
-    const squashBounceTween = scene.tweens.add({
-      targets: bodyVisual,
-      scaleY: { from: 0.92, to: 1.06 },
-      scaleX: { from: 1.05, to: 0.96 },
-      y: { from: 0, to: -5 },
-      duration: duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Quad.easeInOut'
-    });
-
-    const shadowTween = scene.tweens.add({
-      targets: shadow,
-      scaleX: { from: 1.06, to: 0.94 },
-      scaleY: { from: 1.04, to: 0.95 },
-      duration: duration,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Quad.easeInOut'
-    });
-
-    container.waddleTweens = [wobbleTween, squashBounceTween, shadowTween];
-  };
-
-  container.stopWaddle = () => {
-    container.isWaddling = false;
-    if (container.waddleTweens && container.waddleTweens.length > 0) {
-      container.waddleTweens.forEach(t => t.stop());
-      container.waddleTweens = [];
-    }
-
-    bodyVisual.angle = 0;
-    bodyVisual.scaleX = 1;
-    bodyVisual.scaleY = 1;
-    bodyVisual.y = 0;
-    shadow.scaleX = 1;
-    shadow.scaleY = 1;
-
-    container.startIdle();
-  };
-
-  container.startIdle = () => {
-    if (container.idleTween) container.idleTween.stop();
-    container.idleTween = scene.tweens.add({
-      targets: bodyVisual,
-      scaleY: 1.03,
-      scaleX: 0.98,
-      duration: 650,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-  };
-
-  container.startIdle();
-  return container;
+  return group;
 }
 
 /**
  * Tailor Worker Class
- * Supports: Master Tailor, Raymond, Lucas, Cashier Emma
+ * Manages 3D path movement, natural waddle animation, and crafting loop.
  */
 export class TailorWorker {
-  constructor(scene, parentContainer, stationsMap, counterStation, options = {}) {
+  constructor(scene, parentGroup, stationsMap, counterStation, options = {}) {
     this.scene = scene;
-    this.containerParent = parentContainer;
     this.stationsMap = stationsMap;
     this.counterStation = counterStation;
 
@@ -269,65 +160,73 @@ export class TailorWorker {
     this.role = options.role || 'tailor';
     this.craftSpeedBonus = options.craftSpeedBonus || 1.0;
 
-    this.homeX = options.homeX || 275;
-    this.homeY = options.homeY || 460;
+    this.homeX = options.homeX || -2.3;
+    this.homeZ = options.homeZ || 2.3;
 
-    this.container = createAvatarContainer(scene, {
-      isWorker: true,
-      role: this.role
-    });
-    this.container.setPosition(this.homeX, this.homeY);
-    this.container.setDepth(15);
-    parentContainer.add(this.container);
+    this.mesh = create3DCharacterMesh({ isWorker: true, role: this.role });
+    this.mesh.position.set(this.homeX, 0, this.homeZ);
+    parentGroup.add(this.mesh);
 
-    this.radialGauge = new RadialGauge(scene, parentContainer, this.homeX, this.homeY - 48);
+    // Radial Progress Ring attached to world
+    this.radialRing = new RadialProgressRing(scene, parentGroup);
 
-    // Carried garment item
-    this.createCarriedItem(scene);
+    // Carried 3D garment mesh in hands
+    this.createCarriedGarment();
 
     this.state = 'IDLE';
     this.activeCustomer = null;
     this.currentProduct = 'tshirt';
+    this.waddleTime = 0;
+    this.isWalking = false;
+
+    // Movement path interpolation
+    this.startX = this.homeX;
+    this.startZ = this.homeZ;
+    this.targetX = this.homeX;
+    this.targetZ = this.homeZ;
+    this.moveProgress = 1.0;
+    this.moveDuration = 0.5;
+    this.onMoveComplete = null;
   }
 
-  createCarriedItem(scene) {
-    this.carriedItem = scene.add.container(0, 8);
-    const g = scene.add.graphics();
-    this.carriedItemGraphics = g;
-    this.carriedItem.add(g);
-    this.carriedItem.setVisible(false);
-    this.container.bodyVisual.add(this.carriedItem);
+  createCarriedGarment() {
+    this.carriedMesh = new THREE.Group();
+    this.carriedMesh.position.set(0, 0.75, 0.55);
+
+    const shirtGeo = new THREE.BoxGeometry(0.55, 0.16, 0.42);
+    this.shirtMat = new THREE.MeshLambertMaterial({ color: 0x3b82f6 });
+    const shirt = new THREE.Mesh(shirtGeo, this.shirtMat);
+    shirt.castShadow = true;
+    this.carriedMesh.add(shirt);
+
+    this.carriedMesh.visible = false;
+    this.mesh.visual.add(this.carriedMesh);
   }
 
   updateCarriedVisual(product) {
-    const g = this.carriedItemGraphics;
-    g.clear();
-
     if (product === 'jeans') {
-      // Folded Denim Jeans
-      g.fillStyle(0x000000, 0.2);
-      g.fillRoundedRect(-10, -6, 20, 14, 2);
-      g.fillStyle(0x1d4ed8, 1.0);
-      g.fillRoundedRect(-10, -7, 20, 14, 3);
-      g.fillStyle(0xf59e0b, 1.0);
-      g.fillRect(-8, -1, 16, 2); // gold stitch
+      this.shirtMat.color.setHex(0x1d4ed8);
     } else if (product === 'hat') {
-      // Stylish Hat
-      g.fillStyle(0x000000, 0.2);
-      g.fillCircle(0, 2, 9);
-      g.fillStyle(0x9333ea, 1.0);
-      g.fillCircle(0, 0, 8);
-      g.fillStyle(0xfef08a, 1.0);
-      g.fillRect(-6, -2, 12, 3);
+      this.shirtMat.color.setHex(0x9333ea);
     } else {
-      // Folded T-Shirt
-      g.fillStyle(0x000000, 0.2);
-      g.fillRoundedRect(-10, -6, 20, 14, 2);
-      g.fillStyle(0x3b82f6, 1.0);
-      g.fillRoundedRect(-10, -7, 20, 14, 3);
-      g.fillStyle(0xffffff, 0.9);
-      g.fillRoundedRect(-5, -7, 10, 4, 1);
+      this.shirtMat.color.setHex(0x3b82f6);
     }
+  }
+
+  moveTo(x, z, duration, onComplete) {
+    this.startX = this.mesh.position.x;
+    this.startZ = this.mesh.position.z;
+    this.targetX = x;
+    this.targetZ = z;
+    this.moveDuration = Math.max(0.2, duration / gameState.getWorkerSpeedMultiplier());
+    this.moveProgress = 0;
+    this.isWalking = true;
+    this.onMoveComplete = onComplete;
+
+    // Rotate worker towards destination
+    const dx = x - this.startX;
+    const dz = z - this.startZ;
+    this.mesh.rotation.y = Math.atan2(dx, dz);
   }
 
   assignOrder(customer) {
@@ -340,285 +239,221 @@ export class TailorWorker {
 
   processOrder() {
     this.state = 'WALKING_TO_STATION';
-    this.container.startWaddle();
 
-    // Find destination station spot based on product
-    let targetX = 275;
-    let targetY = 460;
+    let stationX = -2.3;
+    let stationZ = 2.3;
 
     if (this.currentProduct === 'jeans' && this.stationsMap.jeans) {
-      targetX = this.stationsMap.jeans.x;
-      targetY = this.stationsMap.jeans.y - 45;
+      stationX = 2.3;
+      stationZ = 2.3;
     } else if (this.currentProduct === 'hat' && this.stationsMap.hats) {
-      targetX = this.stationsMap.hats.x;
-      targetY = this.stationsMap.hats.y - 45;
-    } else if (this.stationsMap.sewing) {
-      targetX = this.stationsMap.sewing.x;
-      targetY = this.stationsMap.sewing.y - 45;
+      stationX = 0;
+      stationZ = 5.3;
     }
 
-    const speedMultiplier = gameState.getWorkerSpeedMultiplier();
-    const dist = Phaser.Math.Distance.Between(this.container.x, this.container.y, targetX, targetY);
-    const duration = Math.max(180, Math.round((dist / 160) * 400 / speedMultiplier));
+    const dist = Math.hypot(stationX - this.mesh.position.x, stationZ - this.mesh.position.z);
+    const duration = Math.max(0.25, dist * 0.18);
 
-    this.scene.tweens.add({
-      targets: this.container,
-      x: targetX,
-      y: targetY,
-      duration: duration,
-      ease: 'Linear',
-      onComplete: () => {
-        this.container.stopWaddle();
-        this.startCrafting(targetX, targetY);
-      }
+    this.moveTo(stationX, stationZ, duration, () => {
+      this.startCrafting(stationX, stationZ);
     });
   }
 
-  startCrafting(stationX, stationY) {
+  startCrafting(x, z) {
     this.state = 'CRAFTING';
 
-    let craftDuration = 1500;
+    let durationSec = 1.8;
     if (this.currentProduct === 'jeans') {
-      craftDuration = gameState.getJeansCraftDuration();
+      durationSec = gameState.getJeansCraftDuration() / 1000;
     } else if (this.currentProduct === 'hat') {
-      craftDuration = gameState.getHatsCraftDuration();
+      durationSec = gameState.getHatsCraftDuration() / 1000;
     } else {
-      craftDuration = gameState.getSewingCraftDuration();
+      durationSec = gameState.getSewingCraftDuration() / 1000;
     }
 
-    craftDuration = Math.round(craftDuration / this.craftSpeedBonus);
+    durationSec = Math.max(0.3, durationSec / this.craftSpeedBonus);
 
-    // Position radial progress bar right above worker
-    this.radialGauge.setPosition(this.container.x, this.container.y - 48);
-    const gaugeIcon = this.currentProduct === 'jeans' ? '👖' : (this.currentProduct === 'hat' ? '🧢' : '✂️');
-    this.radialGauge.setIcon(gaugeIcon);
-
-    this.radialGauge.start(craftDuration, () => {
+    // Float radial progress ring above worker's head
+    this.radialRing.start(this.mesh.position.x, 2.6, this.mesh.position.z, durationSec, () => {
       this.finishCrafting();
-    });
-
-    this.craftTween = this.scene.tweens.add({
-      targets: this.container.bodyVisual,
-      angle: { from: -3, to: 3 },
-      scaleY: { from: 0.95, to: 1.04 },
-      duration: 180,
-      yoyo: true,
-      repeat: Math.floor(craftDuration / 180),
-      ease: 'Sine.easeInOut'
     });
   }
 
   finishCrafting() {
-    if (this.craftTween) this.craftTween.stop();
-    this.container.bodyVisual.angle = 0;
-    this.container.bodyVisual.setScale(1);
-
     this.updateCarriedVisual(this.currentProduct);
-    this.carriedItem.setVisible(true);
+    this.carriedMesh.visible = true;
 
     this.state = 'WALKING_TO_COUNTER';
-    this.container.startWaddle();
 
     const targetX = (this.activeCustomer && this.activeCustomer.counterSlot)
       ? this.activeCustomer.counterSlot.x
-      : 360;
-    const destY = GAME_CONFIG.layout.counter.workerStopY;
+      : 0;
+    const targetZ = 1.4;
 
-    const speedMultiplier = gameState.getWorkerSpeedMultiplier();
-    const dist = Phaser.Math.Distance.Between(this.container.x, this.container.y, targetX, destY);
-    const duration = Math.max(200, Math.round((dist / 160) * 450 / speedMultiplier));
+    const dist = Math.hypot(targetX - this.mesh.position.x, targetZ - this.mesh.position.z);
+    const duration = Math.max(0.25, dist * 0.18);
 
-    this.scene.tweens.add({
-      targets: this.container,
-      x: targetX,
-      y: destY,
-      duration: duration,
-      ease: 'Linear',
-      onComplete: () => {
-        this.container.stopWaddle();
-        this.serveCustomer();
-      }
+    this.moveTo(targetX, targetZ, duration, () => {
+      this.serveCustomer();
     });
   }
 
   serveCustomer() {
     this.state = 'SERVING';
-    this.carriedItem.setVisible(false);
+    this.carriedMesh.visible = false;
 
     if (this.activeCustomer && this.activeCustomer.active) {
       this.activeCustomer.receiveOrder(this.currentProduct);
     }
 
-    this.scene.time.delayedCall(180, () => {
+    setTimeout(() => {
       this.activeCustomer = null;
       this.state = 'IDLE';
-      this.scene.events.emit('workerBecameIdle', this);
-    });
+    }, 200);
+  }
+
+  update(delta) {
+    // Movement & Natural 3D Waddle Animation
+    if (this.isWalking) {
+      this.moveProgress += delta / this.moveDuration;
+      const t = Math.min(1.0, this.moveProgress);
+
+      this.mesh.position.x = this.startX + (this.targetX - this.startX) * t;
+      this.mesh.position.z = this.startZ + (this.targetZ - this.startZ) * t;
+
+      // 3D Natural Waddle: Z-tilt and vertical bounce
+      this.waddleTime += delta * 14 * gameState.getWorkerSpeedMultiplier();
+      this.mesh.visual.rotation.z = Math.sin(this.waddleTime) * 0.13;
+      this.mesh.visual.position.y = Math.abs(Math.sin(this.waddleTime)) * 0.2;
+
+      if (t >= 1.0) {
+        this.isWalking = false;
+        this.mesh.visual.rotation.z = 0;
+        this.mesh.visual.position.y = 0;
+        if (this.onMoveComplete) this.onMoveComplete();
+      }
+    } else {
+      // Idle Breathing
+      this.mesh.visual.rotation.z = 0;
+      this.mesh.visual.position.y = 0;
+    }
+
+    if (this.radialRing) {
+      this.radialRing.update(delta);
+    }
   }
 }
 
 /**
- * Shopper (Customer) Class
- * Generates orders for T-shirts, Jeans (Stage 2 unlocked), or Hats (Stage 2 unlocked)
+ * 3D Shopper (Customer) Class
  */
 export class Shopper {
-  constructor(scene, parentContainer, shopperId, colorScheme) {
+  constructor(scene, parentGroup, shopperId, colorScheme) {
     this.scene = scene;
     this.id = shopperId;
     this.active = true;
     this.counterSlot = null;
     this.isBeingServed = false;
 
-    // Pick ordered product based on currently unlocked stations
     this.orderedProduct = this.pickRandomProduct();
 
-    this.container = createAvatarContainer(scene, { isWorker: false, colorScheme });
-    this.container.setPosition(360, 25);
-    this.container.setDepth(10);
-    parentContainer.add(this.container);
+    this.mesh = create3DCharacterMesh({ isWorker: false, colorScheme });
+    this.mesh.position.set(0, 0, -14.0);
+    parentGroup.add(this.mesh);
 
+    // Floating HTML Speech Bubble
     this.createOrderBubble();
-    this.state = 'SPAWNED';
+
+    this.waddleTime = 0;
+    this.isWalking = false;
+    this.startX = 0;
+    this.startZ = -14.0;
+    this.targetX = 0;
+    this.targetZ = -14.0;
+    this.moveProgress = 1.0;
+    this.moveDuration = 0.5;
+    this.onMoveComplete = null;
   }
 
   pickRandomProduct() {
-    const products = ['tshirt'];
+    const p = ['tshirt'];
     if (gameState.stage >= 2) {
-      if (gameState.jeansStation.unlocked) products.push('jeans');
-      if (gameState.hatsStation.unlocked) products.push('hat');
+      if (gameState.jeansStation.unlocked) p.push('jeans');
+      if (gameState.hatsStation.unlocked) p.push('hat');
     }
-    return Phaser.Utils.Array.GetRandom(products);
+    return p[Math.floor(Math.random() * p.length)];
   }
 
   createOrderBubble() {
-    this.speechBubble = this.scene.add.container(0, -58);
-    this.speechBubble.setVisible(false);
-    this.container.add(this.speechBubble);
-
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x000000, 0.22);
-    bg.fillRoundedRect(-36, -25, 72, 42, 10);
-    bg.fillTriangle(0, 22, -8, 15, 8, 15);
-
-    bg.fillStyle(0xffffff, 1.0);
-    bg.fillRoundedRect(-38, -27, 76, 42, 10);
-    bg.fillTriangle(0, 20, -8, 13, 8, 13);
-    bg.lineStyle(1.5, 0xe2e8f0, 0.9);
-    bg.strokeRoundedRect(-38, -27, 76, 42, 10);
-    this.speechBubble.add(bg);
-
-    // Product icon
+    this.bubbleEl = document.createElement('div');
+    this.bubbleEl.className = 'shopper-speech-bubble';
     const icon = this.orderedProduct === 'jeans' ? '👖' : (this.orderedProduct === 'hat' ? '🧢' : '👕');
-    this.productIcon = this.scene.add.text(-12, -6, icon, { fontSize: '22px' }).setOrigin(0.5);
-    this.speechBubble.add(this.productIcon);
+    this.bubbleEl.innerHTML = `<span class="bubble-icon">${icon}</span><span class="bubble-qty">x1</span>`;
+    this.bubbleEl.style.display = 'none';
 
-    this.orderText = this.scene.add.text(14, -5, 'x1', {
-      fontFamily: FONT_FAMILY,
-      fontSize: '20px',
-      fontStyle: 'bold',
-      color: '#0f172a'
-    }).setOrigin(0.5);
-    this.speechBubble.add(this.orderText);
+    const uiContainer = document.getElementById('ui-container');
+    if (uiContainer) uiContainer.appendChild(this.bubbleEl);
+  }
 
-    this.scene.tweens.add({
-      targets: this.speechBubble,
-      y: '-=5',
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
+  updateBubblePosition(camera, width, height) {
+    if (!this.bubbleEl || this.bubbleEl.style.display === 'none' || !this.mesh) return;
+
+    const pos = new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 2.4, this.mesh.position.z);
+    pos.project(camera);
+
+    const screenX = ((pos.x + 1) / 2) * width;
+    const screenY = ((-pos.y + 1) / 2) * height;
+
+    this.bubbleEl.style.left = `${screenX}px`;
+    this.bubbleEl.style.top = `${screenY}px`;
   }
 
   showOrderBubble() {
-    this.speechBubble.setScale(0);
-    this.speechBubble.setVisible(true);
-    this.scene.tweens.add({
-      targets: this.speechBubble,
-      scale: 1,
-      duration: 200,
-      ease: 'Back.easeOut'
-    });
+    if (this.bubbleEl) this.bubbleEl.style.display = 'flex';
   }
 
   hideOrderBubble() {
-    this.speechBubble.setVisible(false);
+    if (this.bubbleEl) this.bubbleEl.style.display = 'none';
   }
 
-  moveTo(x, y, duration = 600, onComplete = null) {
-    this.container.startWaddle();
-    this.scene.tweens.add({
-      targets: this.container,
-      x: x,
-      y: y,
-      duration: duration,
-      ease: 'Linear',
-      onComplete: () => {
-        this.container.stopWaddle();
-        if (onComplete) onComplete();
-      }
-    });
-  }
+  moveTo(x, z, duration, onComplete) {
+    this.startX = this.mesh.position.x;
+    this.startZ = this.mesh.position.z;
+    this.targetX = x;
+    this.targetZ = z;
+    this.moveDuration = duration;
+    this.moveProgress = 0;
+    this.isWalking = true;
+    this.onMoveComplete = onComplete;
 
-  moveToCounterSlot(slot, onArrived = null) {
-    this.counterSlot = slot;
-    const dist = Phaser.Math.Distance.Between(this.container.x, this.container.y, slot.x, slot.y);
-    const duration = Math.max(300, (dist / 160) * 750);
-
-    this.moveTo(slot.x, slot.y, duration, () => {
-      this.state = 'AT_COUNTER';
-      this.showOrderBubble();
-      if (onArrived) onArrived();
-    });
-  }
-
-  moveToWaitingQueue(pos, onArrived = null) {
-    this.counterSlot = null;
-    const dist = Phaser.Math.Distance.Between(this.container.x, this.container.y, pos.x, pos.y);
-    const duration = Math.max(250, (dist / 160) * 750);
-
-    this.moveTo(pos.x, pos.y, duration, () => {
-      this.state = 'IN_QUEUE';
-      if (onArrived) onArrived();
-    });
+    const dx = x - this.startX;
+    const dz = z - this.startZ;
+    this.mesh.rotation.y = Math.atan2(dx, dz);
   }
 
   receiveOrder(product) {
-    this.state = 'SERVED';
-    this.productIcon.setText('💚');
-    this.orderText.setText('');
+    this.hideOrderBubble();
 
-    this.scene.tweens.add({
-      targets: this.container.bodyVisual,
-      scaleY: 1.15,
-      scaleX: 0.92,
-      duration: 140,
-      yoyo: true,
-      ease: 'Back.easeOut'
-    });
-
-    this.scene.time.delayedCall(250, () => {
+    // Celebration Hop
+    this.mesh.visual.position.y = 0.5;
+    setTimeout(() => {
+      this.mesh.visual.position.y = 0;
       this.payAndLeave(product);
-    });
+    }, 200);
   }
 
   payAndLeave(product) {
     let profit = 4;
-    if (product === 'jeans') {
-      profit = gameState.getJeansProfit();
-    } else if (product === 'hat') {
-      profit = gameState.getHatsProfit();
-    } else {
-      profit = gameState.getSewingProfit();
-    }
+    if (product === 'jeans') profit = gameState.getJeansProfit();
+    else if (product === 'hat') profit = gameState.getHatsProfit();
+    else profit = gameState.getSewingProfit();
 
     this.scene.events.emit('customerPaid', {
-      x: this.container.x,
-      y: this.container.y - 30,
+      x: this.mesh.position.x,
+      y: this.mesh.position.y,
+      z: this.mesh.position.z,
       amount: profit
     });
-
-    this.hideOrderBubble();
 
     this.scene.events.emit('shopperVacatingSlot', {
       shopper: this,
@@ -627,153 +462,115 @@ export class Shopper {
     this.counterSlot = null;
 
     // Walk off-screen right
-    this.moveTo(760, this.container.y, 1100, () => {
+    this.moveTo(18, this.mesh.position.z, 1.4, () => {
       this.active = false;
-      this.container.destroy();
+      if (this.bubbleEl && this.bubbleEl.parentNode) {
+        this.bubbleEl.parentNode.removeChild(this.bubbleEl);
+      }
+      this.mesh.parent.remove(this.mesh);
       this.scene.events.emit('shopperExited', this);
     });
+  }
+
+  update(delta) {
+    if (this.isWalking) {
+      this.moveProgress += delta / this.moveDuration;
+      const t = Math.min(1.0, this.moveProgress);
+
+      this.mesh.position.x = this.startX + (this.targetX - this.startX) * t;
+      this.mesh.position.z = this.startZ + (this.targetZ - this.startZ) * t;
+
+      this.waddleTime += delta * 14;
+      this.mesh.visual.rotation.z = Math.sin(this.waddleTime) * 0.12;
+      this.mesh.visual.position.y = Math.abs(Math.sin(this.waddleTime)) * 0.18;
+
+      if (t >= 1.0) {
+        this.isWalking = false;
+        this.mesh.visual.rotation.z = 0;
+        this.mesh.visual.position.y = 0;
+        if (this.onMoveComplete) this.onMoveComplete();
+      }
+    }
   }
 }
 
 /**
- * Character & Queue Manager
- * Coordinates Workers, Cashier Emma, Shoppers, and Station Routing
+ * 3D Character & Queue Manager
  */
 export class CharacterManager {
-  constructor(scene, parentContainer, stationsMap, counterStation) {
+  constructor(scene, parentGroup, stationsMap, counterStation) {
     this.scene = scene;
-    this.container = parentContainer;
+    this.group = parentGroup;
     this.stationsMap = stationsMap;
     this.counterStation = counterStation;
 
-    // Tailor Worker pool
-    this.tailor = new TailorWorker(scene, parentContainer, stationsMap, counterStation, {
+    // Master Tailor
+    this.tailor = new TailorWorker(scene, parentGroup, stationsMap, counterStation, {
       id: 'tailor',
       name: 'Master Tailor',
       role: 'tailor',
-      homeX: 275,
-      homeY: 460
+      homeX: -2.3,
+      homeZ: 2.3
     });
     this.workers = [this.tailor];
 
-    // Horizontal counter service slots
     this.counterSlots = [
-      { id: 0, x: GAME_CONFIG.layout.counter.customerSlots[0].x, y: GAME_CONFIG.layout.counter.customerStopY, customer: null },
-      { id: 1, x: GAME_CONFIG.layout.counter.customerSlots[1].x, y: GAME_CONFIG.layout.counter.customerStopY, customer: null }
+      { id: 0, x: -1.8, z: -1.5, customer: null },
+      { id: 1, x: 1.8, z: -1.5, customer: null }
     ];
 
+    this.shoppers = [];
     this.waitingQueue = [];
     this.nextShopperId = 1;
 
-    // Spawner
-    this.spawnTimer = scene.time.addEvent({
-      delay: 2600,
-      callback: () => this.trySpawnShopper(),
-      loop: true
-    });
+    this.spawnTimer = 0;
+    this.spawnInterval = 2.8;
 
-    // Listeners
-    scene.events.on('shopperVacatingSlot', (data) => {
-      this.handleSlotVacated(data.shopper, data.slot);
-    });
+    // Event listeners
+    scene.events.on('shopperVacatingSlot', (data) => this.handleSlotVacated(data.shopper, data.slot));
+    scene.events.on('shopperExited', (shopper) => this.handleSlotVacated(shopper, null));
 
-    scene.events.on('shopperExited', (shopper) => {
-      this.handleSlotVacated(shopper, null);
-    });
-
-    scene.events.on('workerBecameIdle', () => {
-      this.checkCounterService();
-    });
-
-    // Upgrades triggers
     gameState.on('upgradePurchased', (data) => {
-      if (data.id === 'hire_raymond') {
-        this.spawnRaymond();
-      } else if (data.id === 'master_tailor') {
-        this.spawnLucas();
-      } else if (data.id === 'hire_cashier_emma') {
-        this.spawnEmma();
-      }
+      if (data.id === 'hire_raymond') this.spawnRaymond();
+      else if (data.id === 'master_tailor') this.spawnLucas();
+      else if (data.id === 'hire_cashier_emma') this.spawnEmma();
     });
 
     // Initial spawns
-    scene.time.delayedCall(300, () => this.trySpawnShopper());
-    scene.time.delayedCall(1100, () => this.trySpawnShopper());
+    setTimeout(() => this.trySpawnShopper(), 400);
+    setTimeout(() => this.trySpawnShopper(), 1200);
   }
 
   spawnRaymond() {
     if (this.workers.some(w => w.id === 'raymond')) return;
-
-    const raymond = new TailorWorker(this.scene, this.container, this.stationsMap, this.counterStation, {
+    const raymond = new TailorWorker(this.scene, this.group, this.stationsMap, this.counterStation, {
       id: 'raymond',
       name: 'Raymond',
       role: 'raymond',
-      homeX: 360,
-      homeY: 460
+      homeX: 0,
+      homeZ: 2.3
     });
     this.workers.push(raymond);
-    this.showWorkerAnnouncement('👔 RAYMOND HIRED!');
-    this.checkCounterService();
   }
 
   spawnLucas() {
     if (this.workers.some(w => w.id === 'lucas')) return;
-
-    const lucas = new TailorWorker(this.scene, this.container, this.stationsMap, this.counterStation, {
+    const lucas = new TailorWorker(this.scene, this.group, this.stationsMap, this.counterStation, {
       id: 'lucas',
       name: 'Master Lucas',
       role: 'lucas',
       craftSpeedBonus: 1.25,
-      homeX: 445,
-      homeY: 460
+      homeX: 2.3,
+      homeZ: 2.3
     });
     this.workers.push(lucas);
-    this.showWorkerAnnouncement('🎩 MASTER LUCAS JOINED!');
-    this.checkCounterService();
   }
 
   spawnEmma() {
-    if (this.emma) return;
-
-    // Emma stands directly at the front counter!
-    this.emma = createAvatarContainer(this.scene, {
-      isWorker: true,
-      role: 'emma'
-    });
-    this.emma.setPosition(360, GAME_CONFIG.layout.counter.workerStopY);
-    this.emma.setDepth(14);
-    this.container.add(this.emma);
-
-    this.showWorkerAnnouncement('💁‍♀️ CASHIER EMMA ACTIVE!');
-  }
-
-  showWorkerAnnouncement(text) {
-    const pop = this.scene.add.container(360, 420).setDepth(40);
-    this.container.add(pop);
-
-    const bg = this.scene.add.graphics();
-    bg.fillStyle(0x0f172a, 0.9);
-    bg.fillRoundedRect(-100, -18, 200, 36, 10);
-    bg.lineStyle(1.5, 0x22c55e, 1);
-    bg.strokeRoundedRect(-100, -18, 200, 36, 10);
-    pop.add(bg);
-
-    const txt = this.scene.add.text(0, 0, text, {
-      fontFamily: FONT_FAMILY,
-      fontSize: '18px',
-      fontStyle: 'bold',
-      color: '#86efac'
-    }).setOrigin(0.5);
-    pop.add(txt);
-
-    this.scene.tweens.add({
-      targets: pop,
-      y: '-=40',
-      alpha: 0,
-      duration: 1400,
-      ease: 'Cubic.easeOut',
-      onComplete: () => pop.destroy()
-    });
+    if (this.emmaMesh) return;
+    this.emmaMesh = create3DCharacterMesh({ isWorker: true, role: 'emma' });
+    this.emmaMesh.position.set(0, 0, 1.4);
+    this.group.add(this.emmaMesh);
   }
 
   trySpawnShopper() {
@@ -781,22 +578,23 @@ export class CharacterManager {
     const totalShoppers = this.counterSlots.filter(s => s.customer !== null).length + this.waitingQueue.length;
     if (totalShoppers >= this.counterSlots.length + maxWaiting) return;
 
-    const palette = Phaser.Utils.Array.GetRandom(GAME_CONFIG.colors.shopperPalette);
-    const shopper = new Shopper(this.scene, this.container, this.nextShopperId++, palette);
+    const palette = GAME_CONFIG.colors.shopperPalette[Math.floor(Math.random() * GAME_CONFIG.colors.shopperPalette.length)];
+    const shopper = new Shopper(this.scene, this.group, this.nextShopperId++, palette);
+    this.shoppers.push(shopper);
 
     const freeSlot = this.counterSlots.find(s => s.customer === null);
     if (freeSlot) {
       freeSlot.customer = shopper;
-      shopper.moveToCounterSlot(freeSlot, () => {
+      shopper.counterSlot = freeSlot;
+      shopper.moveTo(freeSlot.x, freeSlot.z, 1.1, () => {
+        shopper.showOrderBubble();
         this.checkCounterService();
       });
     } else if (this.waitingQueue.length < maxWaiting) {
       const waitIdx = this.waitingQueue.length;
       const waitPos = GAME_CONFIG.layout.waitingQueue[waitIdx];
       this.waitingQueue.push(shopper);
-      shopper.moveToWaitingQueue(waitPos);
-    } else {
-      shopper.container.destroy();
+      shopper.moveTo(waitPos.x, waitPos.z, 1.1);
     }
   }
 
@@ -809,9 +607,11 @@ export class CharacterManager {
 
     for (const cs of this.counterSlots) {
       if (cs.customer === null && this.waitingQueue.length > 0) {
-        const nextShopper = this.waitingQueue.shift();
-        cs.customer = nextShopper;
-        nextShopper.moveToCounterSlot(cs, () => {
+        const next = this.waitingQueue.shift();
+        cs.customer = next;
+        next.counterSlot = cs;
+        next.moveTo(cs.x, cs.z, 0.65, () => {
+          next.showOrderBubble();
           this.checkCounterService();
         });
       }
@@ -820,7 +620,7 @@ export class CharacterManager {
     for (let i = 0; i < this.waitingQueue.length; i++) {
       const queued = this.waitingQueue[i];
       const targetPos = GAME_CONFIG.layout.waitingQueue[i];
-      queued.moveToWaitingQueue(targetPos);
+      queued.moveTo(targetPos.x, targetPos.z, 0.45);
     }
 
     this.checkCounterService();
@@ -832,7 +632,7 @@ export class CharacterManager {
 
     for (const slot of this.counterSlots) {
       const customer = slot.customer;
-      if (customer && customer.active && customer.state === 'AT_COUNTER' && !customer.isBeingServed) {
+      if (customer && customer.active && !customer.isBeingServed && !customer.isWalking) {
         const worker = idleWorkers.shift();
         if (!worker) break;
 
@@ -842,7 +642,28 @@ export class CharacterManager {
     }
   }
 
-  update(time, delta) {
+  update(delta, camera, width, height) {
+    // Spawner
+    this.spawnTimer += delta;
+    if (this.spawnTimer >= this.spawnInterval) {
+      this.spawnTimer = 0;
+      this.trySpawnShopper();
+    }
+
+    // Workers
+    this.workers.forEach(w => w.update(delta));
+
+    // Shoppers
+    for (let i = this.shoppers.length - 1; i >= 0; i--) {
+      const s = this.shoppers[i];
+      s.update(delta);
+      s.updateBubblePosition(camera, width, height);
+      if (!s.active) {
+        this.shoppers.splice(i, 1);
+      }
+    }
+
+    // Check service
     if (this.workers.some(w => w.state === 'IDLE')) {
       this.checkCounterService();
     }
