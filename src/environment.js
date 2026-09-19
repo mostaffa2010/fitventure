@@ -1,420 +1,528 @@
 /**
- * Fitventure - Environment Renderer
- * Perspective: 2.5D Top-Down Orthographic
- * Recreates the Eatventure stage layout adapted for a Boutique:
- * Soft asphalt grey road, subtle concrete sidewalk, warm boutique parquet floor,
- * pastel blue/white striped umbrellas flanking the counter, lush side hedges,
- * and rich 2.5D drop shadows giving grounded depth.
+ * Fitventure - Environment & World Renderer
+ * Perspective: 2.5D Top-Down Orthographic (Eatventure Proportions)
+ * Implements:
+ * 1. Wide asphalt street with pedestrian zebra crossing.
+ * 2. Animated colorful cars driving across with puffing exhaust smoke particles.
+ * 3. Stage 1 Theme: Outdoor Sidewalk Boutique Kiosk with yellow awning & patio umbrellas.
+ * 4. Stage 2 Theme: Customized Fashion Van / Mobile Boutique (food-truck vehicle with open window).
+ * 5. Grounding 2.5D translucent dark oval drop shadows.
  */
 
-import { GAME_CONFIG } from './config.js';
+import { GAME_CONFIG, gameState } from './config.js';
 
-export function drawEnvironment(scene) {
-  const g = scene.add.graphics();
-  const { width, height, colors } = GAME_CONFIG;
+/**
+ * Traffic Manager: Drives stylized colorful 2.5D cars across the top street
+ * with puffing exhaust smoke particles.
+ */
+export class TrafficManager {
+  constructor(scene, parentContainer) {
+    this.scene = scene;
+    this.container = parentContainer;
+    this.cars = [];
 
-  // 1. TOP SOFT ASPHALT GREY ROAD (y: 0 to 180)
-  g.fillStyle(colors.asphalt, 1.0);
-  g.fillRect(0, 0, width, 180);
+    // Car models palette
+    this.carModels = [
+      { body: 0xef4444, roof: 0xb91c1c, name: 'Red Sportster' },
+      { body: 0xf59e0b, roof: 0xd97706, name: 'Yellow Cab' },
+      { body: 0x0ea5e9, roof: 0x0284c7, name: 'Cyan Hatchback' },
+      { body: 0x8b5cf6, roof: 0x6d28d9, name: 'Purple Cruiser' },
+      { body: 0x10b981, roof: 0x047857, name: 'Mint Compact' }
+    ];
 
-  // Road markings - subtle road texture / gutter lines
-  g.lineStyle(3, colors.asphaltMarking, 0.8);
-  g.lineBetween(0, 178, width, 178);
+    // Spawn timer: spawns a car every 3.5 - 5 seconds
+    this.spawnTimer = scene.time.addEvent({
+      delay: 3800,
+      callback: () => this.spawnCar(),
+      loop: true
+    });
 
-  // Dashed lane divider at top of road
-  g.lineStyle(4, 0xf1c40f, 0.55);
-  for (let x = 20; x < width; x += 60) {
-    g.lineBetween(x, 25, x + 35, 25);
+    // Spawn first car immediately
+    scene.time.delayedCall(800, () => this.spawnCar());
   }
 
-  // WHITE CROSSWALK STRIPES (Zebra Crossing) centered at x: 360
-  // Pedestrians use this crosswalk to walk into the boutique
-  const stripeWidth = 140;
-  const stripeHeight = 14;
-  const stripeStartX = 360 - stripeWidth / 2;
-  g.fillStyle(colors.crosswalk, 0.95);
-  for (let y = 45; y < 175; y += 22) {
-    g.fillRoundedRect(stripeStartX, y, stripeWidth, stripeHeight, 3);
+  spawnCar() {
+    const model = Phaser.Utils.Array.GetRandom(this.carModels);
+    const laneY = Phaser.Math.Between(0, 1) === 0 ? 68 : 112; // Two street lanes
+    const speed = laneY === 68 ? Phaser.Math.Between(150, 190) : Phaser.Math.Between(130, 170);
+    const duration = (860 / speed) * 1000;
+
+    const car = this.scene.add.container(-90, laneY);
+    car.setDepth(4);
+    this.container.add(car);
+
+    const g = this.scene.add.graphics();
+    car.add(g);
+
+    const w = 78;
+    const h = 38;
+
+    // 1. Drop shadow under car
+    g.fillStyle(0x000000, 0.28);
+    g.fillEllipse(0, h / 2 + 4, w * 1.05, 18);
+
+    // 2. Wheels
+    g.fillStyle(0x0f172a, 1.0);
+    g.fillRoundedRect(-w / 2 + 10, -h / 2 - 3, 14, 6, 2);
+    g.fillRoundedRect(w / 2 - 24, -h / 2 - 3, 14, 6, 2);
+    g.fillRoundedRect(-w / 2 + 10, h / 2 - 3, 14, 6, 2);
+    g.fillRoundedRect(w / 2 - 24, h / 2 - 3, 14, 6, 2);
+
+    // 3. Car Body
+    g.fillStyle(model.body, 1.0);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, 9);
+
+    // Side shading
+    g.fillStyle(0x000000, 0.12);
+    g.fillRoundedRect(-w / 2, h / 2 - 6, w, 6, { tl: 0, tr: 0, bl: 9, br: 9 });
+
+    // 4. Cabin & Windshield
+    g.fillStyle(model.roof, 1.0);
+    g.fillRoundedRect(-w / 2 + 14, -h / 2 + 4, w - 28, h - 8, 6);
+
+    // Front windshield
+    g.fillStyle(0x38bdf8, 0.85);
+    g.fillRoundedRect(w / 2 - 22, -h / 2 + 6, 6, h - 12, 2);
+    // Rear windshield
+    g.fillRoundedRect(-w / 2 + 16, -h / 2 + 6, 5, h - 12, 2);
+
+    // 5. Headlights & Taillights
+    g.fillStyle(0xfef08a, 1.0);
+    g.fillCircle(w / 2 - 2, -h / 2 + 6, 3);
+    g.fillCircle(w / 2 - 2, h / 2 - 6, 3);
+
+    g.fillStyle(0xef4444, 1.0);
+    g.fillCircle(-w / 2 + 2, -h / 2 + 6, 2.5);
+    g.fillCircle(-w / 2 + 2, h / 2 - 6, 2.5);
+
+    // Periodic exhaust puff emitter while driving
+    const exhaustTimer = this.scene.time.addEvent({
+      delay: 160,
+      callback: () => {
+        if (!car.active) return;
+        this.emitExhaustPuff(car.x - w / 2, car.y + h / 2 - 6);
+      },
+      loop: true
+    });
+
+    // Drive tween across screen
+    this.scene.tweens.add({
+      targets: car,
+      x: 820,
+      duration: duration,
+      ease: 'Linear',
+      onComplete: () => {
+        exhaustTimer.destroy();
+        car.destroy();
+      }
+    });
   }
 
-  // 2. SUBTLE CONCRETE SIDEWALK (y: 180 to 260)
-  g.fillStyle(colors.sidewalk, 1.0);
-  g.fillRect(0, 180, width, 80);
+  emitExhaustPuff(x, y) {
+    const puff = this.scene.add.graphics();
+    puff.setDepth(3);
+    puff.setPosition(x, y);
+    this.container.add(puff);
 
-  // Sidewalk curb highlight & drop shadow
-  g.fillStyle(0xffffff, 0.5);
-  g.fillRect(0, 180, width, 3); // top curb light
-  g.fillStyle(colors.curb, 1.0);
-  g.fillRect(0, 183, width, 4); // curb face
-  g.fillStyle(colors.curbShadow, 0.6);
-  g.fillRect(0, 187, width, 2);
+    puff.fillStyle(0xe2e8f0, 0.6);
+    puff.fillCircle(0, 0, Phaser.Math.Between(3, 5));
 
-  // Sidewalk concrete expansion joint lines
-  g.lineStyle(2, 0xcfd8dc, 0.8);
-  for (let x = 60; x < width; x += 100) {
-    g.lineBetween(x, 189, x, 260);
+    this.scene.tweens.add({
+      targets: puff,
+      x: x - Phaser.Math.Between(15, 25),
+      y: y + Phaser.Math.Between(-4, 4),
+      scale: 2.2,
+      alpha: 0,
+      duration: 380,
+      ease: 'Quad.easeOut',
+      onComplete: () => puff.destroy()
+    });
+  }
+}
+
+/**
+ * Environment Manager: Handles rendering and live switching between Stage 1 & Stage 2
+ */
+export class EnvironmentManager {
+  constructor(scene, parentContainer) {
+    this.scene = scene;
+    this.container = parentContainer;
+
+    this.bgGraphics = scene.add.graphics();
+    this.bgGraphics.setDepth(1);
+    this.container.add(this.bgGraphics);
+
+    this.propsGraphics = scene.add.graphics();
+    this.propsGraphics.setDepth(6);
+    this.container.add(this.propsGraphics);
+
+    this.umbrellas = [];
+
+    // Initialize Traffic on the street
+    this.trafficManager = new TrafficManager(scene, parentContainer);
+
+    // Initial draw based on current stage
+    this.drawWorld(gameState.stage);
+
+    // Listen for stage renovation
+    gameState.on('stageRenovated', (data) => {
+      this.drawWorld(data.stage);
+    });
   }
 
-  // Sidewalk edge transition to boutique threshold
-  g.fillStyle(0x94a3b8, 0.5);
-  g.fillRect(0, 257, width, 3);
+  drawWorld(stage) {
+    this.bgGraphics.clear();
+    this.propsGraphics.clear();
+    this.clearUmbrellas();
 
-  // 3. BOUTIQUE INTERIOR PARQUET FLOOR (y: 260 to 1100)
-  g.fillStyle(colors.boutiqueFloor, 1.0);
-  g.fillRect(0, 260, width, 840);
+    const { width, colors } = GAME_CONFIG;
 
-  // Boutique wood floor planks / parquet grid
-  const tileSize = 60;
-  g.lineStyle(1, colors.boutiquePlank, 0.65);
-  for (let y = 260; y < 1100; y += tileSize) {
-    g.lineBetween(0, y, width, y);
-  }
-  for (let x = 0; x < width; x += tileSize) {
-    g.lineBetween(x, 260, x, 1100);
-  }
+    // 1. TOP WIDE ASPHALT STREET (y: 0 to 180)
+    this.bgGraphics.fillStyle(colors.asphalt, 1.0);
+    this.bgGraphics.fillRect(0, 0, width, 180);
 
-  // Checkered boutique rug runner framing the horizontal customer counter service slots
-  g.fillStyle(colors.rugFill, 0.6);
-  g.fillRoundedRect(220, 260, 280, 180, 8);
-  g.lineStyle(2, colors.rugBorder, 0.8);
-  g.strokeRoundedRect(220, 260, 280, 180, 8);
+    // Road gutter line
+    this.bgGraphics.lineStyle(3, colors.asphaltMarking, 0.8);
+    this.bgGraphics.lineBetween(0, 178, width, 178);
 
-  // Elegant parquet inlay rug under the tightly positioned Sewing Workstation (y: 585)
-  g.fillStyle(colors.rugFill, 0.7);
-  g.fillRoundedRect(190, 520, 340, 140, 16);
-  g.lineStyle(2, colors.rugBorder, 0.9);
-  g.strokeRoundedRect(190, 520, 340, 140, 16);
+    // Center lane divider dashes
+    this.bgGraphics.lineStyle(4, 0xf1c40f, 0.5);
+    for (let x = 15; x < width; x += 55) {
+      this.bgGraphics.lineBetween(x, 90, x + 30, 90);
+    }
 
-  // 4. DARK RED PAVEMENT BAND AT BOTTOM DOCK (y: 1100 to 1280)
-  g.fillStyle(colors.bottomDeckRed, 1.0);
-  g.fillRect(0, 1100, width, 180);
+    // WHITE ZEBRA CROSSWALK STRIPES (centered at x: 360)
+    const stripeW = 120;
+    const stripeH = 14;
+    const stripeStartX = 360 - stripeW / 2;
+    this.bgGraphics.fillStyle(colors.crosswalk, 0.95);
+    for (let y = 30; y < 175; y += 22) {
+      this.bgGraphics.fillRoundedRect(stripeStartX, y, stripeW, stripeH, 3);
+    }
 
-  // Bottom curb trim and brick joint styling
-  g.fillStyle(colors.bottomDeckBevel, 1.0);
-  g.fillRect(0, 1100, width, 5); // highlight bevel
-  g.lineStyle(2, 0x4c0519, 0.6);
-  g.lineBetween(0, 1105, width, 1105);
+    // 2. CONCRETE SIDEWALK (y: 180 to 250)
+    this.bgGraphics.fillStyle(colors.sidewalk, 1.0);
+    this.bgGraphics.fillRect(0, 180, width, 70);
 
-  // Paver tile joints on the red band
-  for (let y = 1105; y < height; y += 45) {
-    g.lineBetween(0, y, width, y);
-    const offsetX = (Math.floor((y - 1105) / 45) % 2) * 45;
-    for (let x = offsetX; x < width; x += 90) {
-      g.lineBetween(x, y, x, y + 45);
+    // Curb highlight & face
+    this.bgGraphics.fillStyle(0xffffff, 0.45);
+    this.bgGraphics.fillRect(0, 180, width, 3);
+    this.bgGraphics.fillStyle(colors.curb, 1.0);
+    this.bgGraphics.fillRect(0, 183, width, 4);
+
+    // Expansion joint lines
+    this.bgGraphics.lineStyle(2, 0xcfd8dc, 0.8);
+    for (let x = 60; x < width; x += 90) {
+      this.bgGraphics.lineBetween(x, 187, x, 250);
+    }
+
+    if (stage === 1) {
+      this.drawStage1Boutique();
+    } else {
+      this.drawStage2FashionVan();
     }
   }
 
-  // 5. SIDE GREEN HEDGES & BOUTIQUE WALLS
-  // Left hedge column (x: 28)
-  drawHedgeColumn(g, 28, 260, 1080, 0x22c55e, 0x15803d);
-  // Right hedge column (x: 692)
-  drawHedgeColumn(g, 692, 260, 1080, 0x22c55e, 0x15803d);
+  drawStage1Boutique() {
+    const { width, colors } = GAME_CONFIG;
 
-  // 6. PASTEL BLUE/WHITE STRIPED UMBRELLAS FLANKING THE COUNTER
-  // Flanking left (x: 125, y: 405) and right (x: 595, y: 405)
-  drawStripedUmbrella(scene, GAME_CONFIG.layout.umbrellas.left.x, GAME_CONFIG.layout.umbrellas.left.y);
-  drawStripedUmbrella(scene, GAME_CONFIG.layout.umbrellas.right.x, GAME_CONFIG.layout.umbrellas.right.y);
+    // Boutique Interior Parquet Floor (y: 250 to 900)
+    this.bgGraphics.fillStyle(colors.boutiqueFloor, 1.0);
+    this.bgGraphics.fillRect(0, 250, width, 650);
 
-  // 7. BOUTIQUE THEMATIC FURNITURE & DECORATIONS (With 2.5D Drop Shadows)
-  drawBoutiqueDecor(scene);
+    // Parquet plank lines
+    const tileSize = 55;
+    this.bgGraphics.lineStyle(1, colors.boutiquePlank, 0.6);
+    for (let y = 250; y < 900; y += tileSize) {
+      this.bgGraphics.lineBetween(0, y, width, y);
+    }
+    for (let x = 0; x < width; x += tileSize) {
+      this.bgGraphics.lineBetween(x, 250, x, 900);
+    }
 
-  // 8. ENTRANCE AWNING CANOPY (y: 220 to 290)
-  drawAwningCanopy(scene, 170, 220, 380, 70);
+    // Inlay woven runner rug framing counter and sewing station
+    this.bgGraphics.fillStyle(0xf5eedf, 0.7);
+    this.bgGraphics.fillRoundedRect(180, 250, 360, 480, 16);
+    this.bgGraphics.lineStyle(2, 0xd6c7b2, 0.9);
+    this.bgGraphics.strokeRoundedRect(180, 250, 360, 480, 16);
 
-  return g;
-}
+    // Side Hedge Columns
+    this.drawHedgeColumn(this.bgGraphics, 28, 250, 900);
+    this.drawHedgeColumn(this.bgGraphics, 692, 250, 900);
 
-/**
- * Draws rounded organic hedge shrub columns along the boutique perimeter
- */
-function drawHedgeColumn(g, centerX, startY, endY, colorLight, colorDark) {
-  const radius = 26;
-  for (let y = startY + radius; y <= endY - radius; y += 38) {
-    // 2.5D Drop Shadow
+    // Flanking Patio Umbrellas (Left & Right of counter)
+    this.umbrellas.push(drawStripedUmbrella(this.scene, this.container, GAME_CONFIG.layout.umbrellas.left.x, GAME_CONFIG.layout.umbrellas.left.y));
+    this.umbrellas.push(drawStripedUmbrella(this.scene, this.container, GAME_CONFIG.layout.umbrellas.right.x, GAME_CONFIG.layout.umbrellas.right.y));
+
+    // Boutique Decor Props
+    this.drawStage1Props();
+
+    // Entrance Awning Canopy
+    this.drawAwningCanopy(180, 215, 360, 65);
+  }
+
+  drawStage2FashionVan() {
+    const { width, colors } = GAME_CONFIG;
+
+    // Outdoor Paver Lot Floor
+    this.bgGraphics.fillStyle(0xe2e8f0, 1.0);
+    this.bgGraphics.fillRect(0, 250, width, 650);
+
+    // Stone paver grid
+    this.bgGraphics.lineStyle(1, 0xcfd8dc, 0.7);
+    for (let y = 250; y < 900; y += 45) {
+      this.bgGraphics.lineBetween(0, y, width, y);
+    }
+    for (let x = 0; x < width; x += 45) {
+      this.bgGraphics.lineBetween(x, 250, x, 900);
+    }
+
+    // --- THE CUSTOMIZED FASHION VAN / MOBILE BOUTIQUE VEHICLE ---
+    // Ground Drop Shadow under the entire Van
+    this.bgGraphics.fillStyle(0x000000, 0.28);
+    this.bgGraphics.fillEllipse(360, 715, 460, 48);
+
+    // 4 Van Wheels
+    this.drawVanWheel(180, 710);
+    this.drawVanWheel(540, 710);
+
+    // Van Vehicle Body (Retro Food-Truck Chassis)
+    const vanX = 360;
+    const vanY = 515;
+    const vanW = 440;
+    const vanH = 370;
+
+    // Retro Teal Van Body
+    this.bgGraphics.fillStyle(colors.vanBody, 1.0);
+    this.bgGraphics.fillRoundedRect(vanX - vanW / 2, vanY - vanH / 2, vanW, vanH, 24);
+
+    // Van Roof Trim & Bevel
+    this.bgGraphics.fillStyle(colors.vanRoof, 1.0);
+    this.bgGraphics.fillRoundedRect(vanX - vanW / 2, vanY - vanH / 2, vanW, 28, { tl: 24, tr: 24, bl: 0, br: 0 });
+
+    // Chrome Bumper
+    this.bgGraphics.fillStyle(colors.vanChrome, 1.0);
+    this.bgGraphics.fillRoundedRect(vanX - vanW / 2 - 8, vanY + vanH / 2 - 16, vanW + 16, 18, 8);
+
+    // Open Service Window Hatch (Where customers order and counter sits!)
+    const hatchW = 360;
+    const hatchH = 290;
+    this.bgGraphics.fillStyle(0x0f172a, 0.95);
+    this.bgGraphics.fillRoundedRect(vanX - hatchW / 2, vanY - hatchH / 2 + 10, hatchW, hatchH, 12);
+
+    // Warm Parquet Floor INSIDE the Mobile Van
+    this.bgGraphics.fillStyle(colors.vanFloor, 1.0);
+    this.bgGraphics.fillRoundedRect(vanX - hatchW / 2 + 8, vanY - hatchH / 2 + 18, hatchW - 16, hatchH - 24, 10);
+
+    // Parquet lines inside van
+    this.bgGraphics.lineStyle(1, 0xd4c0a5, 0.6);
+    for (let py = vanY - hatchH / 2 + 20; py < vanY + hatchH / 2 - 10; py += 35) {
+      this.bgGraphics.lineBetween(vanX - hatchW / 2 + 10, py, vanX + hatchW / 2 - 10, py);
+    }
+
+    // Flip-Up Window Awning Canopy
+    this.drawVanAwning(vanX, vanY - hatchH / 2 + 10, hatchW + 20, 48);
+
+    // Roof Luggage Rack with Designer Suitcases & Fabric
+    this.drawRoofRack(vanX, vanY - vanH / 2);
+
+    // Neon Boutique Sign on Roof
+    this.drawNeonSign(vanX, vanY - vanH / 2 - 28);
+  }
+
+  drawVanWheel(x, y) {
+    // Tire shadow
+    this.bgGraphics.fillStyle(0x000000, 0.35);
+    this.bgGraphics.fillEllipse(x, y + 6, 48, 16);
+    // Tire rubber
+    this.bgGraphics.fillStyle(0x0f172a, 1.0);
+    this.bgGraphics.fillRoundedRect(x - 20, y - 18, 40, 36, 10);
+    // Chrome Hubcap
+    this.bgGraphics.fillStyle(0xe2e8f0, 1.0);
+    this.bgGraphics.fillCircle(x, y, 11);
+    this.bgGraphics.fillStyle(0x94a3b8, 1.0);
+    this.bgGraphics.fillCircle(x, y, 6);
+  }
+
+  drawVanAwning(x, y, w, depth) {
+    const stripeCount = 8;
+    const sw = w / stripeCount;
+    for (let i = 0; i < stripeCount; i++) {
+      const isTeal = i % 2 === 0;
+      const sx = x - w / 2 + i * sw;
+
+      this.bgGraphics.fillStyle(isTeal ? 0x0d9488 : 0xf8fafc, 1.0);
+      this.bgGraphics.beginPath();
+      this.bgGraphics.moveTo(sx, y);
+      this.bgGraphics.lineTo(sx + sw, y);
+      this.bgGraphics.lineTo(sx + sw, y + depth);
+      this.bgGraphics.lineTo(sx, y + depth);
+      this.bgGraphics.closePath();
+      this.bgGraphics.fillPath();
+
+      // Scalloped bottom
+      this.bgGraphics.fillCircle(sx + sw / 2, y + depth + 3, sw / 2);
+    }
+  }
+
+  drawRoofRack(x, y) {
+    // Metal rack
+    this.bgGraphics.fillStyle(0x334155, 1.0);
+    this.bgGraphics.fillRect(x - 160, y - 8, 320, 6);
+    this.bgGraphics.fillRect(x - 150, y - 14, 6, 8);
+    this.bgGraphics.fillRect(x + 144, y - 14, 6, 8);
+
+    // Suitcase 1 (Cognac leather)
+    this.bgGraphics.fillStyle(0xb45309, 1.0);
+    this.bgGraphics.fillRoundedRect(x - 130, y - 30, 52, 24, 4);
+    // Suitcase 2 (Navy)
+    this.bgGraphics.fillStyle(0x1e3a8a, 1.0);
+    this.bgGraphics.fillRoundedRect(x - 65, y - 28, 48, 22, 4);
+    // Rolled Fabric Bundle
+    this.bgGraphics.fillStyle(0xec4899, 1.0);
+    this.bgGraphics.fillRoundedRect(x + 10, y - 26, 60, 20, 6);
+    this.bgGraphics.fillStyle(0x3b82f6, 1.0);
+    this.bgGraphics.fillRoundedRect(x + 80, y - 26, 50, 20, 6);
+  }
+
+  drawNeonSign(x, y) {
+    const signG = this.scene.add.graphics();
+    signG.setDepth(12);
+    this.container.add(signG);
+
+    signG.fillStyle(0x0f172a, 0.95);
+    signG.fillRoundedRect(x - 140, y - 20, 280, 40, 10);
+    signG.lineStyle(2, 0x14b8a6, 1.0);
+    signG.strokeRoundedRect(x - 140, y - 20, 280, 40, 10);
+
+    const txt = this.scene.add.text(x, y, '✨ FASHION VAN 🚚', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '18px',
+      fontStyle: 'bold',
+      color: '#5eead4'
+    }).setOrigin(0.5).setDepth(13);
+    this.container.add(txt);
+  }
+
+  drawHedgeColumn(g, centerX, startY, endY) {
+    const radius = 24;
+    for (let y = startY + radius; y <= endY - radius; y += 36) {
+      g.fillStyle(0x000000, 0.22);
+      g.fillEllipse(centerX + 2, y + 6, radius * 2, radius * 1.2);
+      g.fillStyle(0x15803d, 1.0);
+      g.fillCircle(centerX, y, radius);
+      g.fillStyle(0x22c55e, 1.0);
+      g.fillCircle(centerX - 3, y - 4, radius * 0.75);
+    }
+  }
+
+  drawStage1Props() {
+    const g = this.propsGraphics;
+
+    // Left boutique rack with hanging clothes
     g.fillStyle(0x000000, 0.22);
-    g.fillEllipse(centerX + 2, y + 6, radius * 2, radius * 1.2);
+    g.fillEllipse(90, 520, 44, 18);
+    g.fillStyle(0x1e293b, 1.0);
+    g.fillRoundedRect(72, 435, 32, 85, 4);
+    g.fillStyle(0x475569, 1.0);
+    g.fillRect(86, 442, 4, 70);
 
-    // Dark foliage base
-    g.fillStyle(colorDark, 1.0);
-    g.fillCircle(centerX, y, radius);
+    const shirtColors = [0xef4444, 0x3b82f6, 0xf59e0b, 0x10b981];
+    shirtColors.forEach((color, i) => {
+      const sy = 450 + i * 16;
+      g.fillStyle(color, 1.0);
+      g.fillRoundedRect(78, sy, 20, 12, 3);
+    });
 
-    // Light foliage highlight for 2.5D roundness
-    g.fillStyle(colorLight, 1.0);
-    g.fillCircle(centerX - 3, y - 4, radius * 0.75);
+    // Right boutique mirror with glass shine
+    g.fillStyle(0x000000, 0.22);
+    g.fillEllipse(632, 520, 44, 18);
+    g.fillStyle(0xd97706, 1.0);
+    g.fillRoundedRect(614, 435, 34, 85, 6);
+    g.fillStyle(0xe0f2fe, 0.88);
+    g.fillRoundedRect(618, 440, 26, 75, 3);
+  }
 
-    // Bright leaf accents
-    g.fillStyle(0x86efac, 0.45);
-    g.fillCircle(centerX - 5, y - 6, 5);
+  drawAwningCanopy(x, y, width, depth) {
+    const g = this.scene.add.graphics();
+    g.setDepth(18);
+    this.container.add(g);
+
+    const stripeCount = 10;
+    const stripeWidth = width / stripeCount;
+
+    for (let i = 0; i < stripeCount; i++) {
+      const isYellow = i % 2 === 0;
+      const sx = x + i * stripeWidth;
+
+      g.fillStyle(isYellow ? 0xf59e0b : 0xf8fafc, 1.0);
+      g.beginPath();
+      g.moveTo(sx, y);
+      g.lineTo(sx + stripeWidth, y);
+      g.lineTo(sx + stripeWidth, y + depth);
+      g.lineTo(sx, y + depth);
+      g.closePath();
+      g.fillPath();
+
+      g.fillCircle(sx + stripeWidth / 2, y + depth + 4, stripeWidth / 2);
+    }
+  }
+
+  clearUmbrellas() {
+    this.umbrellas.forEach(u => {
+      if (u && u.destroy) u.destroy();
+    });
+    this.umbrellas = [];
   }
 }
 
 /**
- * Draws Pastel Blue & White Striped Patio Umbrella with Grounding Drop Shadow
+ * Draws a Striped Umbrella with Ground Drop Shadow
  */
-export function drawStripedUmbrella(scene, x, y) {
+export function drawStripedUmbrella(scene, parentContainer, x, y) {
   const container = scene.add.container(x, y);
-  container.setDepth(9); // Render alongside workstation furniture
+  container.setDepth(9);
+  parentContainer.add(container);
 
   const g = scene.add.graphics();
   container.add(g);
 
-  // 1. Soft Translucent Dark Oval Drop Shadow directly under umbrella base
+  // Ground drop shadow
   g.fillStyle(0x000000, 0.25);
-  g.fillEllipse(0, 65, 56, 22);
+  g.fillEllipse(0, 60, 52, 20);
 
-  // 2. Weighted Cast Iron Base
+  // Cast iron base
   g.fillStyle(0x334155, 1.0);
-  g.fillCircle(0, 60, 16);
-  g.fillStyle(0x1e293b, 1.0);
-  g.fillCircle(0, 60, 10);
+  g.fillCircle(0, 56, 15);
 
-  // 3. Polished Teak Wood / Steel Pole
+  // Pole
   g.fillStyle(0x64748b, 1.0);
-  g.fillRect(-3, -15, 6, 75);
-  g.fillStyle(0x94a3b8, 1.0);
-  g.fillRect(-1, -15, 2, 75);
+  g.fillRect(-3, -15, 6, 70);
 
-  // 4. Parasol Canopy Shadow on top of pole
-  g.fillStyle(0x000000, 0.18);
-  g.fillEllipse(0, 10, 88, 36);
-
-  // 5. Pastel Blue and White Striped Canopy (8 Radial Segments)
-  const radius = 54;
+  // Canopy
+  const radius = 50;
   const segments = 8;
-  const colors = [GAME_CONFIG.colors.umbrellaBlue, GAME_CONFIG.colors.umbrellaWhite];
+  const colors = [GAME_CONFIG.colors.blueBtn, 0xffffff];
 
   for (let i = 0; i < segments; i++) {
-    const startAngle = (i * 2 * Math.PI) / segments;
-    const endAngle = ((i + 1) * 2 * Math.PI) / segments;
-    const color = colors[i % 2];
-
-    g.fillStyle(color, 1.0);
+    const a1 = (i * 2 * Math.PI) / segments;
+    const a2 = ((i + 1) * 2 * Math.PI) / segments;
+    g.fillStyle(colors[i % 2], 1.0);
     g.beginPath();
-    g.moveTo(0, -10); // Canopy Apex
-    // 2.5D perspective ellipse for canopy perimeter
-    const x1 = Math.cos(startAngle) * radius;
-    const y1 = Math.sin(startAngle) * (radius * 0.58);
-    const x2 = Math.cos(endAngle) * radius;
-    const y2 = Math.sin(endAngle) * (radius * 0.58);
-    g.lineTo(x1, y1);
-    g.lineTo(x2, y2);
+    g.moveTo(0, -10);
+    g.lineTo(Math.cos(a1) * radius, Math.sin(a1) * (radius * 0.58));
+    g.lineTo(Math.cos(a2) * radius, Math.sin(a2) * (radius * 0.58));
     g.closePath();
     g.fillPath();
-
-    // Subtle edge scalloped valance
-    g.fillStyle(color, 1.0);
-    const midX = (x1 + x2) / 2;
-    const midY = (y1 + y2) / 2;
-    g.fillCircle(midX, midY + 3, 5);
-
-    // Shading on lower half
-    if (midY > 0) {
-      g.fillStyle(0x000000, 0.08);
-      g.fillCircle(midX, midY + 3, 5);
-    }
   }
 
-  // Outer rim outline for crisp Eatventure styling
-  g.lineStyle(2, 0x60a5fa, 0.6);
-  g.strokeEllipse(0, 0, radius * 2, radius * 1.16);
-
-  // 6. Polished Brass Finial on Top
+  // Brass finial
   g.fillStyle(0xf1c40f, 1.0);
-  g.fillCircle(0, -12, 6);
-  g.fillStyle(0xfef08a, 1.0);
-  g.fillCircle(-1, -14, 2);
+  g.fillCircle(0, -12, 5);
 
   return container;
 }
 
-/**
- * Draws High-End Boutique Props (Racks, Fitting Booth, Plants, Lounge Seating)
- * All props have soft translucent dark oval drop shadows to give grounding depth.
- */
-function drawBoutiqueDecor(scene) {
-  const g = scene.add.graphics();
-  g.setDepth(6);
-
-  // --- LEFT WALL (Upper): Boutique T-Shirt Display Rack ---
-  // 2.5D Drop Shadow
-  g.fillStyle(0x000000, 0.22);
-  g.fillEllipse(90, 580, 48, 20);
-
-  // Black iron metal rack frame
-  g.fillStyle(0x1e293b, 1.0);
-  g.fillRoundedRect(72, 475, 32, 100, 4);
-  g.fillStyle(0x475569, 1.0);
-  g.fillRect(86, 482, 4, 85); // hanging bar
-
-  // Mini colorful tees on display rack
-  const shirtColors = [0xef4444, 0x3b82f6, 0xf59e0b, 0x8b5cf6, 0x10b981];
-  shirtColors.forEach((color, i) => {
-    const sy = 490 + i * 16;
-    g.lineStyle(2, 0x94a3b8, 1);
-    g.strokeCircle(88, sy - 2, 4);
-    g.fillStyle(color, 1.0);
-    g.fillRoundedRect(78, sy + 2, 20, 13, 3);
-  });
-
-  // --- LEFT WALL (Lower): Luxury Fitting Booth with Velvet Curtain ---
-  // 2.5D Drop Shadow
-  g.fillStyle(0x000000, 0.22);
-  g.fillEllipse(92, 810, 56, 22);
-
-  // Booth frame
-  g.fillStyle(0x334155, 1.0);
-  g.fillRoundedRect(68, 700, 46, 105, 6);
-  // Interior mirror glimpse
-  g.fillStyle(0xe0f2fe, 0.8);
-  g.fillRect(72, 705, 38, 95);
-  // Rich Royal Purple Velvet Drape / Curtain
-  g.fillStyle(0x7e22ce, 1.0);
-  g.fillRoundedRect(68, 700, 32, 105, 4);
-  // Curtain pleat folds
-  g.fillStyle(0x581c87, 0.7);
-  g.fillRect(76, 700, 5, 105);
-  g.fillRect(88, 700, 4, 105);
-  // Brass curtain rings
-  g.fillStyle(0xf1c40f, 1.0);
-  g.fillCircle(78, 698, 3);
-  g.fillCircle(90, 698, 3);
-
-  // --- RIGHT WALL (Upper): Boutique Fitting Mirror ---
-  // 2.5D Drop Shadow
-  g.fillStyle(0x000000, 0.22);
-  g.fillEllipse(632, 580, 50, 20);
-
-  // Gold gilded ornate frame
-  g.fillStyle(0xd97706, 1.0);
-  g.fillRoundedRect(614, 475, 34, 100, 6);
-  g.fillStyle(0xfbbf24, 1.0);
-  g.fillRoundedRect(616, 477, 30, 96, 4);
-
-  // Mirror glass pane
-  g.fillStyle(0xe0f2fe, 0.88);
-  g.fillRoundedRect(618, 480, 26, 90, 3);
-
-  // Glass diagonal sheen/reflection
-  g.fillStyle(0xffffff, 0.55);
-  g.beginPath();
-  g.moveTo(620, 490);
-  g.lineTo(638, 484);
-  g.lineTo(632, 520);
-  g.lineTo(620, 530);
-  g.closePath();
-  g.fillPath();
-
-  // --- RIGHT WALL (Lower): Fashion Display Mannequin with Designer Dress ---
-  // 2.5D Drop Shadow
-  g.fillStyle(0x000000, 0.22);
-  g.fillEllipse(628, 805, 46, 18);
-
-  // Wooden tripod stand
-  g.fillStyle(0x78350f, 1.0);
-  g.fillRect(626, 745, 4, 55);
-  g.fillCircle(628, 800, 10);
-
-  // Mannequin torso & fashionable coral dress
-  g.fillStyle(0xf43f5e, 1.0);
-  g.fillRoundedRect(616, 705, 24, 42, 6);
-  // Gold belt cinch
-  g.fillStyle(0xf1c40f, 1.0);
-  g.fillRect(616, 725, 24, 4);
-  // Chic neck form
-  g.fillStyle(0xd97706, 1.0);
-  g.fillCircle(628, 700, 6);
-
-  // --- BOTTOM LOUNGE AREA: Chic Boutique Waiting Sofa (x: 360, y: 940) ---
-  // Gives cozy grounding to the lower boutique area without empty space!
-  // 2.5D Drop Shadow under sofa
-  g.fillStyle(0x000000, 0.22);
-  g.fillEllipse(360, 975, 250, 42);
-
-  // Warm Scandinavian sofa body (warm beige fabric)
-  g.fillStyle(0xd6c7b2, 1.0);
-  g.fillRoundedRect(245, 915, 230, 55, 14);
-
-  // Sofa seat cushions
-  g.fillStyle(0xe8ddcc, 1.0);
-  g.fillRoundedRect(252, 920, 105, 42, 8);
-  g.fillRoundedRect(363, 920, 105, 42, 8);
-
-  // Colorful boutique accent throw pillows
-  g.fillStyle(0x3b82f6, 1.0);
-  g.fillRoundedRect(256, 924, 24, 24, 5);
-  g.fillStyle(0xf59e0b, 1.0);
-  g.fillRoundedRect(440, 924, 24, 24, 5);
-
-  // Sofa wooden tapered legs
-  g.fillStyle(0x78350f, 1.0);
-  g.fillRect(255, 965, 8, 12);
-  g.fillRect(457, 965, 8, 12);
-
-  // --- POTTED FICUS TREES (Flanking Sofa) ---
-  // Left Tree (x: 170, y: 945)
-  g.fillStyle(0x000000, 0.24);
-  g.fillEllipse(170, 965, 46, 18);
-  g.fillStyle(0xb45309, 1.0); // terracotta pot
-  g.fillRoundedRect(156, 935, 28, 26, 4);
-  g.fillStyle(0x15803d, 1.0); // foliage
-  g.fillCircle(170, 925, 22);
-  g.fillStyle(0x22c55e, 1.0);
-  g.fillCircle(168, 920, 16);
-
-  // Right Tree (x: 550, y: 945)
-  g.fillStyle(0x000000, 0.24);
-  g.fillEllipse(550, 965, 46, 18);
-  g.fillStyle(0xb45309, 1.0);
-  g.fillRoundedRect(536, 935, 28, 26, 4);
-  g.fillStyle(0x15803d, 1.0);
-  g.fillCircle(550, 925, 22);
-  g.fillStyle(0x22c55e, 1.0);
-  g.fillCircle(548, 920, 16);
-}
-
-/**
- * Draws the iconic Eatventure-style striped awning canopy with 2.5D perspective
- */
-function drawAwningCanopy(scene, x, y, width, depth) {
-  const g = scene.add.graphics();
-  g.setDepth(18); // Floats above walking customers
-
-  const stripeCount = 10;
-  const stripeWidth = width / stripeCount;
-
-  // Awning soft drop shadow on ground
-  g.fillStyle(0x000000, 0.25);
-  g.fillRoundedRect(x - 6, y + depth + 4, width + 12, 24, 10);
-
-  // Awning sloped fabric panels
-  for (let i = 0; i < stripeCount; i++) {
-    const isYellow = i % 2 === 0;
-    const sx = x + i * stripeWidth;
-
-    // Top sloped body of awning
-    g.fillStyle(isYellow ? 0xf59e0b : 0xf8fafc, 1.0);
-    g.beginPath();
-    g.moveTo(sx, y);
-    g.lineTo(sx + stripeWidth, y);
-    g.lineTo(sx + stripeWidth, y + depth);
-    g.lineTo(sx, y + depth);
-    g.closePath();
-    g.fillPath();
-
-    // Side shading for depth
-    g.fillStyle(0x000000, 0.08);
-    g.fillRect(sx + stripeWidth - 2, y, 2, depth);
-
-    // Front scalloped valance
-    g.fillStyle(isYellow ? 0xf59e0b : 0xf8fafc, 1.0);
-    g.fillCircle(sx + stripeWidth / 2, y + depth + 4, stripeWidth / 2);
-    g.fillStyle(0x000000, 0.06);
-    g.fillCircle(sx + stripeWidth / 2, y + depth + 5, stripeWidth / 2 - 2);
-  }
-
-  // Top metallic mounting rod
-  g.fillStyle(0x1e293b, 0.9);
-  g.fillRect(x - 8, y - 4, width + 16, 6);
-  g.fillCircle(x - 8, y - 1, 5);
-  g.fillCircle(x + width + 8, y - 1, 5);
+export function drawEnvironment(scene, parentContainer) {
+  return new EnvironmentManager(scene, parentContainer);
 }

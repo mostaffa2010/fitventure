@@ -1,87 +1,100 @@
 /**
  * Fitventure - Main Game Scene & Bootstrap
- * Connects all modular systems into an automated, playable 2.5D idle tycoon game.
- * Adheres to Eatventure standards with crisp mechanics, clear modal separation,
- * and high juice.
+ * Orchestrates:
+ * 1. World Camera with 1.45x Zoom centered on action (close-up, zero empty floor).
+ * 2. Dedicated UI Camera (1.0x overlay for pixel-crisp HUD & modals).
+ * 3. Multi-Stage Renovation Lifecycle (Stage 1 Kiosk -> Stage 2 Fashion Van).
+ * 4. Dotted Unlockable Workstations (Jeans Station, Hats Rack).
+ * 5. Self-Clearing Global Upgrades Menu (12 progressive upgrades).
  */
 
 import { GAME_CONFIG, gameState, phaserConfig } from './config.js';
-import { drawEnvironment } from './environment.js';
+import { EnvironmentManager } from './environment.js';
 import { CharacterManager } from './characters.js';
-import { SewingStation, CounterStation, spawnFloatingCoins } from './stations.js';
-import { TopCoinsPill, BottomDock, StationUpgradeModal, GlobalUpgradesModal, RenovateModal, NoticeModal } from './ui.js';
+import { SewingStation, JeansStation, HatsStation, CounterStation, spawnFloatingCoins } from './stations.js';
+import {
+  TopCoinsPill,
+  BottomDock,
+  StationUpgradeModal,
+  GlobalUpgradesModal,
+  UnlockStationModal,
+  RenovationTransition,
+  Stage2OpenModal,
+  NoticeModal
+} from './ui.js';
 
 export class FitventureScene extends (typeof Phaser !== 'undefined' ? Phaser.Scene : class {}) {
   constructor() {
     super({ key: 'FitventureScene' });
   }
 
-  preload() {
-    // Assets are procedurally drawn with Phaser 3 Vector Graphics
-    // to ensure crisp 2.5D rendering at any screen density.
-  }
-
   create() {
-    // 1. Draw 2.5D Top-Down Orthographic Environment
-    // (Soft asphalt road, subtle concrete sidewalk, warm parquet floor, flanking striped umbrellas)
-    this.envGraphics = drawEnvironment(this);
+    // 1. Root Containers separating World (Zoomed 1.45x) and UI (1.0x screen overlay)
+    this.worldContainer = this.add.container(0, 0);
+    this.uiContainer = this.add.container(0, 0);
 
-    // 2. Initialize Workstations
-    // Warm Oak Front Counter with rounded ends and horizontal dual customer slots
-    this.counterStation = new CounterStation(this);
+    // 2. Setup Cameras
+    // World Camera: 1.45x close-up zoom centered tightly on boutique action
+    this.cameras.main.setZoom(GAME_CONFIG.cameraZoom);
+    this.cameras.main.centerOn(GAME_CONFIG.cameraCenter.x, GAME_CONFIG.cameraCenter.y);
 
-    // Crafting Station (Sewing & Cutting Table - tightly positioned for compact layout)
-    this.sewingStation = new SewingStation(this);
+    // UI Camera: 1:1 screen-space camera for HUD, buttons, and modals
+    this.uiCamera = this.cameras.add(0, 0, GAME_CONFIG.width, GAME_CONFIG.height);
+    this.uiCamera.setScroll(0, 0);
 
-    // 3. Initialize AI Characters & Queue Manager
-    // (Spawns shoppers via crosswalk, procedural waddle animations,
-    // horizontal counter slot ordering, waiting queue, tailor and Raymond assistant)
-    this.characterManager = new CharacterManager(this, this.sewingStation, this.counterStation);
+    // Tell World Camera to ignore UI container, and UI Camera to ignore World container
+    this.cameras.main.ignore(this.uiContainer);
+    this.uiCamera.ignore(this.worldContainer);
 
-    // 4. Initialize UI Layers
-    // Top Floating Gold Coin Pill (3D depth, count-up punch)
-    this.topCoinsPill = new TopCoinsPill(this);
+    // 3. Initialize Environment & Traffic
+    this.envManager = new EnvironmentManager(this, this.worldContainer);
 
-    // Bottom Dock (Chunky 3D Buttons: Renovate, Boost x2, Upgrades)
-    this.bottomDock = new BottomDock(this);
+    // 4. Initialize Workstations in World Container
+    this.counterStation = new CounterStation(this, this.worldContainer);
+    this.sewingStation = new SewingStation(this, this.worldContainer);
+    this.jeansStation = new JeansStation(this, this.worldContainer);
+    this.hatsStation = new HatsStation(this, this.worldContainer);
 
-    // Station Upgrade Modal: Opens ONLY when clicking directly on the Sewing Station in the world
-    this.stationUpgradeModal = new StationUpgradeModal(this);
+    this.stationsMap = {
+      sewing: this.sewingStation,
+      jeans: this.jeansStation,
+      hats: this.hatsStation
+    };
 
-    // Dedicated Global Upgrades Menu: Opens via Bottom-Right UPGRADES Button
-    this.globalUpgradesModal = new GlobalUpgradesModal(this);
+    // 5. Initialize AI Characters & Queue Manager
+    this.characterManager = new CharacterManager(this, this.worldContainer, this.stationsMap, this.counterStation);
 
-    // Stage 2 Renovation Modal: Activates at Sewing Station Level 25+
-    this.renovateModal = new RenovateModal(this);
+    // 6. Initialize UI Layers in UI Container
+    this.topCoinsPill = new TopCoinsPill(this, this.uiContainer);
+    this.bottomDock = new BottomDock(this, this.uiContainer);
+    this.stationUpgradeModal = new StationUpgradeModal(this, this.uiContainer);
+    this.globalUpgradesModal = new GlobalUpgradesModal(this, this.uiContainer);
+    this.unlockStationModal = new UnlockStationModal(this, this.uiContainer);
+    this.renovationTransition = new RenovationTransition(this, this.uiContainer);
+    this.stage2OpenModal = new Stage2OpenModal(this, this.uiContainer);
+    this.noticeModal = new NoticeModal(this, this.uiContainer);
 
-    // Notice & Toast Modal
-    this.noticeModal = new NoticeModal(this);
-
-    // 5. Connect Game Events & Economy Loop
+    // 7. Connect Economy & Currency Effects
     this.events.on('customerPaid', (data) => {
-      spawnFloatingCoins(this, data.x, data.y, data.amount, 360, 70);
+      spawnFloatingCoins(this, data.x, data.y, data.amount, 360, 200);
     });
 
-    console.log('✨ Fitventure: Refactored & Polished to Eatventure Standards!');
+    console.log('✨ Fitventure: Multi-Stage & Close-Up Viewport Initialized!');
   }
 
   update(time, delta) {
     const deltaSeconds = delta / 1000;
 
-    // Update boost multiplier countdown
     gameState.updateBoost(deltaSeconds);
 
-    // Update character AI checks
     if (this.characterManager) {
       this.characterManager.update(time, delta);
     }
   }
 }
 
-// Attach scene to configuration
 phaserConfig.scene = FitventureScene;
 
-// Bootstrap Game on browser window load (if in browser)
 if (typeof window !== 'undefined') {
   window.addEventListener('load', () => {
     window.game = new Phaser.Game(phaserConfig);
